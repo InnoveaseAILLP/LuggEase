@@ -1,0 +1,165 @@
+{
+  "app_name": "LuggEase",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A highly functional, trust-inspiring logistics and moving experience that feels as clear and reliable as a well-organized manifest.",
+  "color": {
+    "surface": "#FAFAFA",
+    "onSurface": "#1A1A1A",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1A1A1A",
+    "surfaceTertiary": "#F0F0F0",
+    "onSurfaceTertiary": "#4A4A4A",
+    "surfaceInverse": "#1A1A1A",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#CC5500",
+    "brandPrimary": "#CC5500",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#F7E5D4",
+    "onBrandSecondary": "#CC5500",
+    "brandTertiary": "#FDECE1",
+    "onBrandTertiary": "#CC5500",
+    "success": "#2E7D32",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F57F17",
+    "onWarning": "#FFFFFF",
+    "error": "#D32F2F",
+    "onError": "#FFFFFF",
+    "info": "#424242",
+    "onInfo": "#FFFFFF",
+    "border": "#E0E0E0",
+    "borderStrong": "#BDBDBD",
+    "divider": "#EEEEEE",
+    "muted": "#757575",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous padding around content; clear thumb zones with 56pt high primary CTAs anchored at the bottom.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Bottom-sheet handles",
+      "Sticky headers over maps",
+      "Primary CTA container over scroll"
+    ],
+    "dont's": [
+      "Body content cards",
+      "Form inputs"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Role Selection & Auth",
+      "purpose": "Secure entry and role routing for Customers vs Delivery Partners.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "N/A",
+        "error": "Standard error alert"
+      },
+      "layout": "Vertical split or card-based selection. Large 56pt buttons for 'Login as Customer' and 'Register as Partner'. Social logins positioned below."
+    },
+    {
+      "name": "Customer Home",
+      "purpose": "Primary booking interface emphasizing location entry.",
+      "states": {
+        "loading": "Map loading skeleton",
+        "empty": "Default map centered on user",
+        "error": "Location permission error with retry CTA"
+      },
+      "layout": "Map-as-hero filling the screen. A draggable `@gorhom/bottom-sheet` contains the 'Where to?' input fields (Pickup/Drop). High-contrast UI overlay for clarity."
+    },
+    {
+      "name": "Item & Service Selection",
+      "purpose": "Capture inventory (items, weight) and service tier (Pack & Shift).",
+      "states": {
+        "loading": "Skeleton grids",
+        "empty": "No items selected - 'Add items to continue'",
+        "error": "Network error fetching categories"
+      },
+      "layout": "Progressive step. First, a grid of categories (Sofa, Fridge, Cartons) using `Phosphor` icons inside `brandTertiary` rounded squares with +/- steppers. Next, side-by-side cards comparing 'Pack & Shift' vs 'Shift-Only' with checklists. Sticky 'Continue' CTA."
+    },
+    {
+      "name": "Checkout & Price Breakdown",
+      "purpose": "Transparent display of distance, hours, items, GST, and final price.",
+      "states": {
+        "loading": "Calculating price spinner",
+        "empty": "N/A",
+        "error": "Payment failed modal"
+      },
+      "layout": "Scrollable vertical list. Invoice-style breakdown cards showing Base Fare, Distance Charge, Packing Charge, and GST (CGST/SGST/IGST). Total prominently displayed. Sticky 'Pay with Razorpay' CTA at the bottom."
+    },
+    {
+      "name": "Partner Dashboard",
+      "purpose": "Cockpit view for delivery partners to manage open jobs and earnings.",
+      "states": {
+        "loading": "Fetching jobs skeleton",
+        "empty": "Illustration of driver on motorcycle - 'No active jobs near you. Check back soon.'",
+        "error": "Offline mode warning"
+      },
+      "layout": "Top section shows active status and quick earnings (95% post 5% commission). Main body is a vertical list of 'Open Jobs' cards showing Pickup, Drop, and Time Window. Massive 'Accept Job' primary button on each card."
+    }
+  ],
+  "images": {
+    "hero_moving_truck": {
+      "url": "https://images.unsplash.com/photo-1586781383963-8e66f88077ec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwzfHxkZWxpdmVyeSUyMHRydWNrJTIwbW92aW5nJTIwYm94ZXN8ZW58MHx8fHwxNzgzMDgxNTA5fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Delivery truck with moving boxes on pallet"
+    },
+    "vehicle_mini_truck": {
+      "url": "https://images.unsplash.com/photo-1601467995997-ac1ae9a8fff4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwyfHxtaW5pJTIwdHJ1Y2slMjBjYXJnbyUyMGNvbnRhaW5lcnxlbnwwfHx8fDE3OTQwNDkxNTl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "White mini truck for cargo"
+    },
+    "partner_empty_state": {
+      "url": "https://images.unsplash.com/photo-1617347454431-f49d7ff5c3b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxsb2dpc3RpY3MlMjBkZWxpdmVyeSUyMGRyaXZlcnxlbnwwfHx8fDE3ODI5MjU3MjV8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Delivery partner on motorcycle during daytime"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Follow '1 iOS-Native Clean' personality closely. Use generous vertical rhythms and high-contrast, highly readable UI.",
+    "Implement a Map-as-Hero layout for the Customer Home screen with '@gorhom/bottom-sheet' for location input.",
+    "Break the booking flow into progressive steps: Location -> Items (stepper grid) -> Service Tier (Pack & Shift vs Shift Only) -> Price breakdown.",
+    "Display a transparent GST invoice (Base fare, Distance, Packing, CGST, SGST) before the Razorpay payment step.",
+    "For the Partner Dashboard, ensure the 5% commission calculation is clearly shown (e.g., Gross Fare - 5% LuggEase Commission = Partner Earnings).",
+    "Use Phosphor icons with consistent weights. Generic furniture items (Sofa, Fridge) should use icons inside 'brandTertiary' rounded squares, not image placeholders.",
+    "Include a gradient scrim (top to bottom, up to 70% opacity) behind any text overlaying images.",
+    "Always wrap scrollable content with a sticky primary CTA anchored at the bottom (outside the scroll view, accounting for safe areas)."
+  ]
+}

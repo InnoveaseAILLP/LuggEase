@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 2. Backend: 59 of 59 pytest tests pass: test_pricing.py, test_luggease_api.py, and a new test_demo_seed.py that checks the demo data and the fixes. All 6 fixes plus the hardening checks were confirmed through the API and UI. The demo data is correct: Priya has 3 orders (DEMO0001/3/5), Ravi sees DEMO0004 with customer contact hidden, admin sees pending partner Amit and DEMO0001-6, and DEMO0001 shows TAX INVOICE LE/DEMO/000001. NEW HIGH bug: on web, reloading or deep-linking to an authenticated screen sends API requests before the stored token has loaded. On /order/:id the resulting 401 deletes the saved token and logs the user out. On /orders the list shows 'Nothing here yet'. No deprecated Expo packages detected (expo-av/expo-barcode-scanner/expo-background-fetch not used). No SafeAreaView issues detected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/payments/page/{rzp_order_id}", "issue": "The hosted checkout page used by the native WebView prefills only name and email, not contact (+91XXXXXXXXXX). Fix 6 only covers the web flow, through the /payments/create response. customer_email and name are also inserted into inline JS without JSON-escaping (server.py:865). Use json.dumps."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Auth bootstrap / API client race", "issue": "Reloading the web page on /order/DEMO0001 or /order/DEMO0004 sends GET /api/orders/{id} with no Authorization header while loadToken() is still pending, and the server returns 401. By the time the response arrives, the module-level token has been loaded, so api() (src/api.ts:34) runs setToken(null) and onUnauthorized(). The stored auth_token is deleted from localStorage and the user is sent back to the login screen. Reproduced for priya (customer) and ravi (partner).", "testID": "order-status-badge", "priority": "HIGH"},
+      {"component": "Orders tab after reload", "issue": "Reloading on /orders fires GET /api/orders 3 times with no token (401 each time) before /auth/me finishes. The query never re-runs after auth loads, and the screen shows the empty state 'Nothing here yet' instead of priya's 3 orders. isError is not handled in app/(tabs)/orders.tsx:30, so the error looks like an empty list.", "testID": "orders-empty-state", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Cold start / deep link with a saved session", "issue": "app/_layout.tsx:37 mounts <Stack> (and the route screens' useQuery calls) while auth loading=true. Queries have no enabled:!!user gate.", "affected_testIDs": ["orders-empty-state", "order-status-badge"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_pricing.py", "/app/backend/tests/test_luggease_api.py", "/app/backend/tests/test_demo_seed.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "HIGH: Fix the auth race. (a) Don't render the Stack screens, or don't let queries run, until auth loading is false. For example, add enabled: !!user to useQuery in orders.tsx, order/[id].tsx and the home components, or render only the spinner while loading. (b) In src/api.ts, capture the token before fetch, e.g. const sent = token, and only clear it on 401 when sent === token, so a request sent without a token can never wipe a newly loaded session. (c) After auth bootstrap or login, call queryClient.invalidateQueries() so screens that already failed fetch again.",
+    "MEDIUM: Handle isError in the Orders tab (and other lists) with an error and retry state, instead of showing the empty state.",
+    "LOW: Add contact to the prefill on the hosted Razorpay checkout page (server.py:865), and json.dumps the values inserted into the inline script."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 916 lines (more than 700). Consider splitting it into routers: auth, orders, partner, admin, payments, pricing.",
+    "@app.on_event('startup'/'shutdown') is deprecated in FastAPI. Use lifespan.",
+    "The grand total rounds half up with math.floor(gross + 0.5) on a float sum (server.py:274). Values like x.4999999 could round inconsistently. Consider Decimal.",
+    "Verified OK: hide_contact covers both partner open jobs and the detail of an open order the partner hasn't accepted; assign() is atomic (status=paid and partner_id=None filter); /payments/verify is customer-only with an owner check; validators use validationLevel=moderate."
+  ],
+  "updated_files": ["/app/backend/tests/test_demo_seed.py (new)"],
+  "success_rate": {"backend": "100% (59/59)", "frontend": "90%: all requested fixes and demo flows pass; the reload/deep-link auth race fails"},
+  "seed_data_creation": "None. I used the existing DEMO data read-only. I created a temporary TEST_ customer (user_08ba35a2944d) and order LE26110721930D for the UI booking flow, then deleted both by id. The DEMO orders (6) and @demo users (6) are unchanged.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests -q. test_demo_seed.py checks the DEMO data read-only. Note: DEMO0001 belongs to ravi; DEMO0002 belongs to suresh. To reproduce the auth race: log in on web, open /order/DEMO0001, then page.reload(). The user ends up on the login screen and localStorage auth_token is removed.",
+  "rca_of_issue": "Repro: log in as priya, open DEMO0001, reload. Network: GET /catalog 200 (no auth), GET /auth/me 200 (with Bearer), GET /orders/DEMO0001 401 (no auth). The order query starts before loadToken() resolves. When its 401 arrives, `token` has been set, so the check `res.status === 401 && token` in src/api.ts:34 clears the valid token and calls onUnauthorized. Mitigation: gate queries on auth readiness, and only clear the token if it is the one that was sent with the failing request."
+}

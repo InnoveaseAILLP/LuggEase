@@ -1,0 +1,55 @@
+{
+  "summary": "First full test run of LuggEase. Backend: 13/13 pytest tests passed, covering auth (register/login/me/role), catalog, quote pricing with the vehicle-by-weight + bulky-item minimum, distance/labour/packing, GST 5% SAC 996511 vs 18% SAC 996729, CGST+SGST vs IGST, 5% commission and 95% payout, orders create/list/get/cancel with role scoping, Razorpay order create + checkout page, partner profile -> pending -> admin approve -> jobs (filtered by vehicle) -> accept -> picked_up/in_transit/delivered -> earnings, admin assign and stats with RBAC 403s. /api/geo/distance (Nominatim) also works (16.9 km returned in about 1.8s). Frontend (390x844) passed end to end: register, onboarding role select, booking (locations with Auto distance -> items -> review invoice with CGST/SGST, hours stepper recalculation, confirm), order detail Pay button opening the real Razorpay checkout for Rs 1,040, orders filter chips, partner registration form (with validation) -> pending card, admin approvals and stats, partner accept job and full status progression, admin assign partner bottom sheet, customer TAX INVOICE view, profile and logout. Found one medium business-logic issue (Pack & Shift labour is never billed for loads of 20 kg or less) and several minor issues. No deprecated Expo packages detected (no expo-av, expo-barcode-scanner or expo-background-fetch).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/quote, POST /api/orders", "issue": "Pack & Shift with a total load of 20 kg or less (e.g. 1 TV): recommended_hours/hours = 0.5 (packing hours) but labour = 0 because labour only applies when needs_helpers (total_kg > 20). The packing service is advertised but packing labour is never billed, and the order detail still says '0.5 hr labour'. Reference: server.py:191-202"},
+      {"endpoint": "POST /api/quote", "issue": "grand_total uses Python round(), which rounds half to even: 934.5 -> 934 (round_off -0.50) but 1039.5 -> 1040 (+0.50). Invoices round inconsistently. Use Decimal ROUND_HALF_UP. Reference: server.py:230"},
+      {"endpoint": "GET /api/orders/{id}", "issue": "Any approved partner can read the customer's email and phone on an open (paid, unassigned) order before accepting it. Consider masking customer contact details until the order is assigned. Reference: server.py:549"},
+      {"endpoint": "POST /api/auth/role", "issue": "Users can switch roles freely at any time (customer <-> partner), and partner_status/approval is kept when they switch back. Consider locking the role once it is set. Reference: server.py:431-441"},
+      {"endpoint": "POST /api/payments/verify", "issue": "Uses current_user but never checks that the order belongs to the caller. The HMAC check protects it, but an ownership check is cleaner. Reference: server.py:793-795"},
+      {"endpoint": "POST /api/partner/profile", "issue": "phone is only length-checked (10-13 characters), with no digit/format validation. vehicle_number and license_number have no format check either. Reference: server.py:623-632"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Book review confirm", "issue": "confirm() calls reset() on the booking draft before navigating away. The still-mounted review screen re-queries /api/quote with an empty payload, which returns a 422 seen in the backend log and console. Navigate first and reset after, or disable the query once submitted.", "testID": "confirm-booking-button", "priority": "low"},
+      {"component": "Toast", "issue": "On the partner register screen, the earlier error toast ('Please fill all required fields') stays on screen overlapping the new success toast ('Submitted for admin approval'). Toasts stack on top of each other instead of replacing.", "testID": "toast-message", "priority": "low"},
+      {"component": "Review hours stepper", "issue": "For light loads (20 kg or less) the hours stepper is hidden, even in Pack & Shift, so the customer cannot add packing hours. This ties to the backend labour issue.", "testID": "hours-stepper", "priority": "medium"}
+    ],
+    "integration_issues": [
+      {"flow": "Razorpay checkout prefill", "issue": "The checkout opened with the correct amount and email, but the mobile number field was empty even though the user saved phone 9876543210 at onboarding and /payments/create returns contact. Razorpay may need a +91 prefix; please verify.", "affected_testIDs": ["pay-now-button"]}
+    ],
+    "design_issues": [
+      {"screen": "Items / Review steppers", "issues": ["Stepper minus/plus buttons are 36x36 px, below the 44x44 minimum touch target"]},
+      {"screen": "Partner home", "issues": ["'Under review' badge uses white text on a light orange background, which looks low-contrast"]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_luggease_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix Pack & Shift pricing for loads of 20 kg or less: bill packing labour (pack_hours x 350) even when needs_helpers is False, or stop showing labour hours. Also show the hours stepper for pack_and_shift.",
+    "Use Decimal ROUND_HALF_UP for grand_total/round_off on GST invoices",
+    "In book/review.tsx confirm(), avoid the stray 422 /quote call (reset the draft after navigation or disable the query)",
+    "Make toasts replace each other instead of stacking/overlapping",
+    "Increase Stepper button size to at least 44x44",
+    "Optional: mask customer phone/email for partners on unaccepted jobs; lock role after it is set; add phone digit validation",
+    "Optional: send the Razorpay prefill contact as +91XXXXXXXXXX",
+    "server.py is 862 lines (>700): split into routers/modules (auth, pricing, orders, partners, admin, payments)",
+    "Add cust1@test.com / Test@1234 to /app/memory/test_credentials.md (it is mentioned in the review request but missing from the file)"
+  ],
+  "critical_code_review_comments": [
+    "server.py exceeds 700 lines; split pricing/auth/orders/payments into modules",
+    "compute_quote: labour only when total_kg > 20, so pack_and_shift packing hours go unbilled for light loads",
+    "round() is banker's rounding; GST invoice round-off should be half-up",
+    "get_order_for exposes customer PII to every approved partner for open paid orders",
+    "Atomic assign (update_one with status=paid and partner_id=None) correctly prevents double acceptance (409 verified)"
+  ],
+  "updated_files": ["/app/backend/tests/test_luggease_api.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% of tested flows working; 1 medium + several minor issues"},
+  "seed_data_creation": "No seed data. Test users/orders were created with the test_/TEST_ prefix and deleted by id after the run. Orders were set to 'paid' directly in Mongo, as instructed, to test partner flows.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_luggease_api.py -v (it uses pytest.ini with xdist -n 2 loadscope; the module runs on one worker). Tests mark orders paid directly in Mongo (test_database.orders). In the web UI the Home tab stays mounted under the Orders tab, so order-card testIDs are duplicated. Use .last with force=True to click the card in the Orders list. ScreenHeader testID 'order-detail' renders only on the back button (order-detail-back-button). Razorpay test keys are loaded from the process env and the checkout iframe opens fine.",
+  "rca_of_issue": "Pack & Shift light-load bug: server.py:191 needs_helpers = total_kg > 20, and line 202 sets labour = rate*hours only if needs_helpers. pack_hours is computed (line 193) and added to recommended_hours but never billed. Repro: POST /api/quote with items=[{tv,1}], service_type=pack_and_shift gives hours=0.5 and no Labour charge line."
+}

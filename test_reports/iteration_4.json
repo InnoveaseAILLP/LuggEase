@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 4 tested the Lugg/Porter features. Backend: 75/75 pytest pass (67 existing + 8 new in test_lugg_porter_features.py). These cover coupons (invalid code, wrong category, LUGG10 cap of ₹200), tip limits and tip going 100% to the partner, helpers minimum and labour scaling, the 3-stop limit, OTP hidden from the partner in list/detail/accept, rating rules, skipped status steps rejected, tips in earnings, cancellation refunds, and category/slot/stops saved on the order. Frontend (375x667 web preview): all 6 category cards show, and the step-1 subtitle shows the category name ('Step 1 of 3 · Junk removal'). Add a stop stops at 3, remove works, and all 7 time slots show and can be selected. Vehicle choice changes the price (₹350 to ₹550 base). Helpers stepper: 0 helpers removes labour and loading for shift_only; pack_and_shift stays at a minimum of 1; 2 helpers doubles labour. Hours stepper bills 1 helper × 1.5 hr × ₹200 = ₹300. Coupons: invalid code and MOVE200 on junk removal both show a message, and FIRST50 and LUGG10 add a discount line before GST. Remove button works. ₹100 tip adds an invoice-tip row and raises Total payable and partner payout by ₹100, while invoice-total excludes the tip. Junk removal adds the Eco-disposal fee; intercity at 350 km adds the toll line. Customer sees the OTP card (DEMO0003 = 1236). Partner sees no OTP card; a wrong OTP shows the 400 toast and the correct OTP moves the order to picked up → in transit → delivered. Rating card submits once, then shows read-only. Partner home shows 4.0★ and 'Includes ₹100.00 in tips'. Cancelling after a partner is assigned shows 'Refund of ₹835.00 ... (₹100 cancellation fee ...)'. No deprecated Expo packages found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "compute_quote labels", "issue": "Labour label grammar: 'Labour (2 helper × 2.5 hr × ₹350)' should say 'helpers' for more than 1"},
+      {"endpoint": "compute_quote", "issue": "The toll/permit charge is added to any category when distance > 100 km, not only intercity. This may be intended; please confirm."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Cancel booking (order/[id].tsx:219)", "issue": "A single tap cancels right away. There is no confirmation dialog and no warning that a ₹100 fee applies once a partner is assigned, so an accidental tap costs the user money.", "testID": "cancel-order-button", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Customer home", "issues": ["Category title 'Furniture & ap…' is cut off; allow 2 lines"]},
+      {"screen": "Review", "issues": ["Vehicle card name 'Mini Truck (…' is cut off", "The step 2/3 subtitles do not show the category name (only step 1 does)"]}
+    ],
+    "react_native_issues": [
+      {"component": "Order detail keyboard handling", "issue": "order/[id].tsx uses a plain ScrollView (line 102). pickup-otp-input sits in the footer and rating-comment-input is inside the scroll view, with no KeyboardAvoidingView/KeyboardAwareScrollView, so on a native device the keyboard may cover the inputs. Reference: /app/frontend/app/order/[id].tsx:85,102"}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_lugg_porter_features.py", "/app/backend/tests/ui_seed_iter4.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Add a confirm dialog before cancel that shows the ₹100 fee when status is assigned (web: window.confirm; native: Alert.alert)",
+    "Wrap order detail in KeyboardAwareScrollView, or use KeyboardAvoidingView for the footer OTP input",
+    "Use the plural 'helpers' in the labour label when count > 1",
+    "Allow 2 lines for category and vehicle names"
+  ],
+  "critical_code_review_comments": [
+    "The partner OTP rules work correctly: partner_view/hide_contact remove pickup_otp in list, detail, accept and status responses",
+    "/api/quote requires auth (401 without a token), which is fine but worth noting for guest price previews",
+    "server.py is 1056 lines (>700); consider splitting pricing, orders and payments into modules",
+    "on_event startup/shutdown is deprecated in FastAPI; move to lifespan"
+  ],
+  "updated_files": ["/app/backend/tests/test_lugg_porter_features.py (new)", "/app/backend/tests/ui_seed_iter4.py (new helper, not collected by pytest)"],
+  "success_rate": {"backend": "100%", "frontend": "100% of tested flows (1 UX issue)"},
+  "seed_data_creation": "Created TEST_ customer + approved TEST_ partner + 2 paid orders via ui_seed_iter4.py for the UI flows, all deleted afterwards by id. No DEMO orders or demo users were changed (6 DEMO orders intact). Priya was used only for read-only browsing; no booking was confirmed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "In this app, invoice-charge-N testIDs sit on the amount text only, so read the invoice-card inner text to get labels. invoice-grand-total and invoice-tip render only when tip > 0. book-review/book-locations testIDs exist only as <id>-back-button on ScreenHeader. Cancel has no confirmation. Run `PYTHONPATH=. python ui_seed_iter4.py` in backend/tests to create UI fixtures, then `... cleanup`. pytest.ini uses xdist (-n).",
+  "rca_of_issue": ""
+}

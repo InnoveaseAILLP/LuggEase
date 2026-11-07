@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 3 retest of the HIGH auth-reload race. FIXED and verified on web at 375x667. Priya: reloading /order/DEMO0001 twice keeps her signed in, and TAX INVOICE LE/DEMO/000001 is shown. Network: /auth/me 200, then /orders/DEMO0001 200, with no token-less request. Reloading /orders twice lists DEMO0005/0003/0001, not empty. Ravi: reloading home twice keeps him signed in, with open job DEMO0004 and Accept visible. A forced 500 on /api/orders shows 'Couldn't load orders - Pull down to try again.' and does not log the user out. A cold deep link while signed out redirects to /login. Checkout page prefill is JSON-escaped and includes contact +919845012345. Regression passed: login, booking (locations, items, review with 3-Wheeler quote and Confirm button), and logout to /login. Backend pytest: 59/59 pass. No deprecated Expo packages and no SafeAreaView issues detected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Orders tab error state", "issues": ["The retry hint is 'Pull down to try again', but pull-to-refresh does not work on web, and the empty and error states share testID orders-empty-state. Consider adding a Retry button (testID orders-retry-button) and a separate testID such as orders-error-state."]},
+      {"screen": "Login after cold deep link", "issues": ["After opening /order/DEMO0001 while signed out and then logging in, the user lands on '/' instead of the order they opened (the return path is not kept). Low priority UX."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_luggease_api.py", "/app/backend/tests/test_demo_seed.py", "/app/backend/tests/test_pricing.py", "/app/test_reports/pytest/pytest_results_it3.xml"],
+  "action_items": [
+    "LOW: Orders error state: add a tappable Retry button that calls refetch(), because pull-to-refresh is unavailable on web, and give the error view its own testID.",
+    "LOW (optional): Keep the deep-link target through login and redirect to it after auth."
+  ],
+  "critical_code_review_comments": [
+    "api.ts: capturing 'sent' and clearing the token only when sent === token is correct. A 401 on a request sent without a token no longer wipes the session.",
+    "_layout.tsx: the Stack renders only when loading is false, so screens cannot fetch before the token loads. Verified via the network log."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (59/59)", "frontend": "100% (all 7 requested checks passed)"},
+  "seed_data_creation": "None. Side effect: calling POST /api/payments/create for DEMO0005 (to test the checkout page) updated DEMO0005.razorpay_order_id to a new test Razorpay order, order_TxGwpSQjo3Clvy. Its status is still pending_payment. No orders or bookings were created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The auth reload race is fixed. Stepper testIDs follow the pattern item-{key}-plus/-minus/-value. book-items and book-review are ScreenHeader testIDs, so check page.url or the inner testIDs instead. Do not delete DEMO* orders or @demo.luggease.in users.",
+  "rca_of_issue": "Iteration 2 root cause: Expo Router mounted the deep-linked screens before AuthProvider's loadToken() finished. Their queries were sent with no token, and the old api.ts cleared the token on any 401. Mitigation (verified): gate the Stack on the loading state, and clear the token only when the token that was sent is the one rejected."
+}
