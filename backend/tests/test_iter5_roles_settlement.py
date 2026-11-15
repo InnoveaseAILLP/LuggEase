@@ -3,7 +3,7 @@ import os
 import requests
 import pytest
 
-BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "").rstrip("/") or open("/app/frontend/.env").read().split("EXPO_PUBLIC_BACKEND_URL=")[1].split("\n")[0].strip().strip('"').rstrip("/")
+BASE_URL = os.environ.get("APP_BACKEND_URL", "").rstrip("/") or open("/app/frontend/.env").read().split("APP_BACKEND_URL=")[1].split("\n")[0].strip().strip('"').rstrip("/")
 API = f"{BASE_URL}/api"
 PW = "Demo@12345"
 

@@ -1,0 +1,33 @@
+import {api, setTokenProvider, setUnauthorizedHandler} from '../src/api';
+const fetchMock = jest.fn();
+global.fetch = fetchMock;
+beforeEach(() => {fetchMock.mockReset();setTokenProvider(async () => 'firebase-token');setUnauthorizedHandler(null);});
+test('attaches current Firebase ID token and sends JSON', async () => {
+  fetchMock.mockResolvedValue({ok:true,status:200,json:async()=>({ok:true})});
+  await expect(api('/quote',{body:{distance:10}})).resolves.toEqual({ok:true});
+  expect(fetchMock).toHaveBeenCalledWith('https://test.example/api/quote',expect.objectContaining({method:'POST',headers:expect.objectContaining({Authorization:'Bearer firebase-token'}),body:'{"distance":10}'}));
+});
+test('a rejected current identity clears protected UI', async () => {
+  const unauthorized = jest.fn(); setUnauthorizedHandler(unauthorized);
+  fetchMock.mockResolvedValue({ok:false,status:401,json:async()=>({detail:'Expired'})});
+  await expect(api('/auth/me')).rejects.toThrow('Expired');
+  expect(unauthorized).toHaveBeenCalledTimes(1);
+});
+test('a stale unauthorized response cannot clear a newer identity', async () => {
+  const unauthorized=jest.fn();setUnauthorizedHandler(unauthorized);
+  let calls=0;setTokenProvider(async () => ++calls===1?'old':'new');
+  fetchMock.mockResolvedValue({ok:false,status:401,json:async()=>({detail:'Expired'})});
+  await expect(api('/auth/me')).rejects.toThrow();
+  expect(unauthorized).not.toHaveBeenCalled();
+});
+test('forbidden responses preserve identity and expose validation error', async () => {
+  const unauthorized=jest.fn();setUnauthorizedHandler(unauthorized);
+  fetchMock.mockResolvedValue({ok:false,status:422,json:async()=>({detail:[{loc:['body','role'],msg:'Invalid role'}]})});
+  await expect(api('/auth/role',{body:{role:'admin'}})).rejects.toThrow('role Invalid role');
+  expect(unauthorized).not.toHaveBeenCalled();
+});
+
+test('a successful non-JSON response cannot masquerade as a user profile', async () => {
+  fetchMock.mockResolvedValue({ok:true,status:200,json:async()=>{throw new Error('HTML');}});
+  await expect(api('/auth/me')).rejects.toThrow('invalid response');
+});

@@ -1,0 +1,5 @@
+@font-face {
+  font-family: 'MaterialDesignIcons';
+  src: url('@react-native-vector-icons/material-design-icons/fonts/MaterialDesignIcons.ttf') format('truetype');
+  font-display: block;
+}

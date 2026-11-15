@@ -1,0 +1,47 @@
+# Prepared only. Requires explicit billing approval, image publication,
+# a dedicated runtime identity and a reachable MongoDB secret before deployment.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: luggease-api
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '1'
+        run.googleapis.com/cpu-throttling: 'true'
+    spec:
+      serviceAccountName: luggease-api@luggease-innovease.iam.gserviceaccount.com
+      containerConcurrency: 40
+      timeoutSeconds: 30
+      containers:
+        - image: REGION-docker.pkg.dev/luggease-innovease/apps/luggease-api:RELEASE_TAG
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            - name: APP_ENV
+              value: production
+            - name: APP_VERSION
+              value: 1.0.0
+            - name: FIREBASE_PROJECT_ID
+              value: luggease-innovease
+            - name: ALLOW_LEGACY_AUTH
+              value: 'false'
+            - name: DB_NAME
+              value: luggease_production
+            - name: CORS_ORIGINS
+              value: https://luggease-innovease.web.app,https://luggease-innovease.firebaseapp.com
+            - name: MONGO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: luggease-mongo-url
+                  key: latest
+# Add actual supplier settings from backend/.env.example before deployment.
+# Add payment secrets only when test/live checkout is approved and configured.

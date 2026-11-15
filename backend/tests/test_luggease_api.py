@@ -12,7 +12,7 @@ def _env(path, key):
             return line.split("=", 1)[1].strip().strip('"')
 
 
-BASE_URL = (os.environ.get("EXPO_PUBLIC_BACKEND_URL") or _env("/app/frontend/.env", "EXPO_PUBLIC_BACKEND_URL")).rstrip("/")
+BASE_URL = (os.environ.get("APP_BACKEND_URL") or _env("/app/frontend/.env", "APP_BACKEND_URL")).rstrip("/")
 API = f"{BASE_URL}/api"
 mdb = MongoClient(_env("/app/backend/.env", "MONGO_URL"))[_env("/app/backend/.env", "DB_NAME")]
 

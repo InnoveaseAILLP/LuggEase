@@ -80,3 +80,20 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+# Local configuration and test runtime
+.env
+.env.*
+!.env.example
+!.env.*.example
+firebase-debug.log*
+*.log
+.pytest_cache/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/ios/Pods/
+frontend/ios/build/
+frontend/scripts/xcode-project/.build/
+
+frontend/ios/.xcode.env.local
+**/xcuserdata/
+*.xcresult/
