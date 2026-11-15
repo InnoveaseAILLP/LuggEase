@@ -12,7 +12,7 @@ Shared iOS, Android and web moving-service app with a FastAPI/MongoDB business A
 - `docs/requirements.md`: functional requirements and release gates.
 - `docs/test-cases.md`: unit, integration and manual acceptance cases.
 - `docs/test-execution.md`: current validation results and limitations.
-- `deployment/cloud-run.md`: API hosting prerequisites and prepared container.
+- `deployment/cloud-run.md`: private Cloud Run API, authenticated API Gateway and database operations.
 
 ## Local setup
 
@@ -57,7 +57,7 @@ See `docs/test-execution.md` for what was actually executed; manual acceptance c
 
 ## Hosting
 
-Firebase Hosting serves `frontend/dist` with SPA fallback. Build with production `VITE_APP_*` configuration, then deploy with `npx -y firebase-tools@latest deploy --only hosting --project luggease-innovease --account hello@innovease-ai.in`. The Python API/database require separate hosting. Spark supports the configured email/password and Google flows; production SMS is outside this free-plan scope.
+Firebase Hosting serves `frontend/dist` with SPA fallback. Build with production `VITE_APP_*` configuration, then deploy with `npx -y firebase-tools@latest deploy --only hosting --project luggease-innovease --account hello@innovease-ai.in`. The owner enabled Google Cloud billing for the private Cloud Run API and persistent database; see deployment/cloud-run.md. API Gateway validates Firebase identities and is the client API endpoint. Email/password and Google authentication are configured; SMS and payments require separate configuration.
 
 ## iOS dependency configuration
 

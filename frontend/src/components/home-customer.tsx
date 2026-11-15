@@ -1,3 +1,4 @@
+import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "react-native";
 import { LinearGradient } from "@/src/components/linear-gradient";
@@ -55,7 +56,7 @@ export function CustomerHome() {
           <Image source={{ uri: HERO }} style={{ position: "absolute", width: "100%", height: "100%" }} resizeMode="cover" />
           <LinearGradient colors={["transparent", colors.scrim]} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "85%" }} />
           <View style={{ padding: space.xl, paddingTop: insets.top + space.lg }}>
-            <Text style={s.hello}>Hi {user?.name?.split(" ")[0] || "there"}</Text>
+            <View style={{flexDirection: "row", alignItems: "center", gap: space.md}}><BrandIcon size={52}/><Text style={s.hello}>Hi {user?.name?.split(" ")[0] || "there"}</Text></View>
             <Text style={s.h1}>What are we moving today?</Text>
           </View>
         </View>

@@ -1,4 +1,8 @@
 import asyncio
+import copy
+import re
+import time
+from collections import deque
 import hashlib
 import hmac
 import secrets
@@ -17,13 +21,15 @@ import httpx
 import jwt
 import razorpay
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pymongo import ASCENDING, DESCENDING, IndexModel
 from pymongo.errors import DuplicateKeyError
 from firebase_identity import verify_identity
+import google_places
+from invoice_pdf import build_invoice_pdf
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
@@ -183,9 +189,9 @@ ITEMS = [
 ITEM_MAP = {i["key"]: i for i in ITEMS}
 
 VEHICLES = [
-    {"key": "two_wheeler", "name": "2-Wheeler", "max_kg": 20, "base": 50, "per_km": 10, "icon": "moped"},
-    {"key": "three_wheeler", "name": "3-Wheeler", "max_kg": 500, "base": 200, "per_km": 18, "icon": "rickshaw"},
-    {"key": "mini_truck", "name": "Mini Truck (Tata Ace)", "max_kg": 750, "base": 350, "per_km": 25, "icon": "truck-outline"},
+    {"key": "two_wheeler", "name": "2-Wheeler", "max_kg": 20, "base": 45, "per_km": 45, "icon": "moped"},
+    {"key": "three_wheeler", "name": "3-Wheeler", "max_kg": 500, "base": 125, "per_km": 140, "icon": "rickshaw"},
+    {"key": "mini_truck", "name": "Mini Truck (Tata Ace)", "max_kg": 750, "base": 150, "per_km": 175, "icon": "truck-outline"},
     {"key": "pickup_8ft", "name": "Pickup 8ft", "max_kg": 1250, "base": 550, "per_km": 32, "icon": "truck"},
     {"key": "truck_14ft", "name": "Truck 14ft", "max_kg": 3500, "base": 1400, "per_km": 48, "icon": "truck-cargo-container"},
 ]
@@ -510,6 +516,10 @@ async def firebase_profile(claims: dict, create: bool = False) -> dict:
 
 def bearer(request: Request) -> str:
     header = request.headers.get("Authorization", "")
+    if os.environ.get("TRUST_API_GATEWAY") == "true":
+        # Gateway replaces Authorization with its IAM token; verify the original
+        # Firebase token independently, including revocation and email verification.
+        header = request.headers.get("X-Forwarded-Authorization", header)
     if not header.lower().startswith("bearer ") or not header[7:].strip():
         raise HTTPException(401, "Not authenticated")
     return header[7:].strip()
@@ -624,6 +634,49 @@ async def catalog():
             "gst_rules": GST_RULES, "commission_rate": COMMISSION_RATE * 100, "categories": SERVICE_CATEGORIES,
             "coupons": [{"code": k, "desc": v["desc"]} for k, v in COUPONS.items()], "time_slots": TIME_SLOTS,
             "cancellation_fee": CANCELLATION_FEE, "stop_charge": STOP_CHARGE}
+
+
+_places_requests: dict[str, deque] = {}
+
+
+def limit_places(user):
+    now = time.monotonic()
+    uid = user["user_id"]
+    # Bound memory as well as upstream requests. Instances scale only to one today.
+    if len(_places_requests) >= 10000:
+        for key in list(_places_requests):
+            if not _places_requests[key] or _places_requests[key][-1] < now - 60:
+                del _places_requests[key]
+        if uid not in _places_requests and len(_places_requests) >= 10000:
+            raise HTTPException(429, "Address search is busy. Please try again shortly.")
+    times = _places_requests.setdefault(uid, deque())
+    while times and times[0] < now - 60:
+        times.popleft()
+    if len(times) >= 60:
+        raise HTTPException(429, "Too many address searches. Please wait a minute.")
+    times.append(now)
+
+
+@api.get("/places/autocomplete")
+async def places_autocomplete(response: Response, input: str = Query(min_length=3, max_length=200),
+                              session_token: str = Query(pattern=r"^[A-Za-z0-9_-]{16,36}$"),
+                              user=Depends(current_user)):
+    response.headers["Cache-Control"] = "private, no-store"
+    limit_places(user)
+    if len(input.strip()) < 3:
+        raise HTTPException(422, "Enter at least three characters")
+    return await google_places.autocomplete(input, session_token)
+
+
+@api.get("/places/details/{place_id}")
+async def place_details(place_id: str, response: Response,
+                        session_token: str = Query(pattern=r"^[A-Za-z0-9_-]{16,36}$"),
+                        user=Depends(current_user)):
+    if not 1 <= len(place_id) <= 256 or not all(c.isalnum() or c in "_-" for c in place_id):
+        raise HTTPException(422, "Invalid place identifier")
+    response.headers["Cache-Control"] = "private, no-store"
+    limit_places(user)
+    return await google_places.details(place_id, session_token)
 
 
 class DistanceBody(BaseModel):
@@ -745,6 +798,23 @@ async def get_order_for(order_id: str, user: dict) -> dict:
 @api.get("/orders/{order_id}")
 async def get_order(order_id: str, user=Depends(current_user)):
     return await get_order_for(order_id, user)
+
+
+@api.get("/orders/{order_id}/invoice.pdf")
+async def download_invoice(order_id: str, user=Depends(current_user)):
+    query = {"order_id": order_id}
+    if user.get("role") != "admin":
+        query["customer_id"] = user["user_id"]
+    order = await db.orders.find_one(query)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if not order.get("invoice_no") or not order.get("invoice_date"):
+        raise HTTPException(409, "Sales invoice is available after payment.")
+    data = await asyncio.to_thread(build_invoice_pdf, order, order.get("invoice_supplier") or SUPPLIER)
+    filename = re.sub(r"[^A-Za-z0-9_-]", "-", str(order["invoice_no"]))[:80]
+    return Response(data, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="LuggEase-Sales-Invoice-{filename}.pdf"',
+        "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @api.post("/orders/{order_id}/cancel")
@@ -1072,7 +1142,7 @@ async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer
     n = iso(now_utc())
     inv = await next_invoice_no()
     await db.orders.update_one({"order_id": o["order_id"], "status": "pending_payment"}, {
-        "$set": {"status": "paid", "invoice_no": inv, "invoice_date": n, "updated_at": n,
+        "$set": {"status": "paid", "invoice_no": inv, "invoice_date": n, "invoice_supplier": copy.deepcopy(SUPPLIER), "updated_at": n,
                  "payment": {"provider": "razorpay", "payment_id": payment_id, "method": pay.get("method"), "paid_at": n}},
         "$push": {"timeline": {"status": "paid", "at": n}}})
     return await db.orders.find_one({"order_id": o["order_id"]}, {"_id": 0})

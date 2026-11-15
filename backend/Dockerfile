@@ -3,7 +3,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8080
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY server.py firebase_identity.py seed_demo.py ./
+COPY server.py firebase_identity.py seed_demo.py google_places.py invoice_pdf.py ./
+COPY assets ./assets
 RUN useradd --create-home appuser
 USER appuser
 CMD ["sh", "-c", "exec uvicorn server:app --host 0.0.0.0 --port ${PORT}"]

@@ -5,6 +5,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "@/src/api";
+import { AddressInput } from "@/src/components/address-input";
 import { useBooking } from "@/src/booking";
 import { useCatalog } from "@/src/components/invoice-card";
 import { Button, Card, Icon, Input, radius, ScreenHeader, SectionTitle, space, Stepper, useToast } from "@/src/components/ui";
@@ -60,7 +61,7 @@ export default function BookLocations() {
       <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ gap: space.md }}>
           <View style={s.locHead}><Icon name="circle-slice-8" size={18} color={colors.success} /><Text style={s.locTitle}>Pickup</Text></View>
-          <Input testID="pickup-address-input" value={draft.pickup_address} onChangeText={(t) => update({ pickup_address: t })} placeholder="House no, street, area, city, pincode" multiline />
+          <AddressInput testID="pickup-address-input" value={draft.pickup_address} onChangeText={(t) => update({ pickup_address: t })} onSelect={(p) => update({ pickup_address: p.address, ...(p.state ? { pickup_state: p.state } : {}) })} />
           <StateField label="Pickup state" value={draft.pickup_state} onPress={() => setPicker("pickup_state")} testID="pickup-state-select" />
           <View style={s.floorRow}>
             <Text style={s.floorLabel}>Floor</Text>
@@ -70,7 +71,7 @@ export default function BookLocations() {
 
         <Card style={{ gap: space.md }}>
           <View style={s.locHead}><Icon name="map-marker" size={18} color={colors.brandPrimary} /><Text style={s.locTitle}>Drop</Text></View>
-          <Input testID="drop-address-input" value={draft.drop_address} onChangeText={(t) => update({ drop_address: t })} placeholder="House no, street, area, city, pincode" multiline />
+          <AddressInput testID="drop-address-input" value={draft.drop_address} onChangeText={(t) => update({ drop_address: t })} onSelect={(p) => update({ drop_address: p.address, ...(p.state ? { drop_state: p.state } : {}) })} />
           <StateField label="Drop state" value={draft.drop_state} onPress={() => setPicker("drop_state")} testID="drop-state-select" />
           <View style={s.floorRow}>
             <Text style={s.floorLabel}>Floor</Text>

@@ -48,14 +48,14 @@ def test_unknown_item_and_state_rejected():
 def test_distance_increases_price_and_free_km():
     near, far = q(distance_km=2), q(distance_km=52)
     assert not any(c["label"].startswith("Distance") for c in near["charges"])
-    assert far["taxable_value"] - near["taxable_value"] == 50 * 25  # mini truck Rs 25/km
+    assert far["taxable_value"] - near["taxable_value"] == 50 * 175  # mini truck Rs 175/km
 
 
 # --- Labour hours / service types ---
 def test_shift_only_default_hours_and_labour():
     r = q()
     assert r["hours"] == 1 and r["labour_billable"] and r["min_hours"] == 1
-    assert r["taxable_value"] == 890.0  # 350 base + 200 distance + 140 handling + 200 labour
+    assert r["taxable_value"] == 1890.0  # 150 base + 1400 distance + 140 handling + 200 labour
 
 
 def test_custom_hours_billed():
@@ -93,7 +93,7 @@ def test_floor_charge_only_without_lift():
 # --- GST ---
 def test_intra_state_cgst_sgst_5pct():
     g = q()["gst"]
-    assert (g["sac"], g["rate"], g["cgst"], g["sgst"], g["igst"]) == ("996511", 5, 22.25, 22.25, 0)
+    assert (g["sac"], g["rate"], g["cgst"], g["sgst"], g["igst"]) == ("996511", 5, 47.25, 47.25, 0)
     assert g["supply_type"] == "Intra-State"
 
 
@@ -103,11 +103,26 @@ def test_inter_state_igst_18pct():
     assert g["igst"] == g["total"] and g["supply_type"] == "Inter-State"
 
 
+@pytest.mark.parametrize("pickup_state,intra", [("Tamil Nadu", True), ("Karnataka", False)])
+def test_tamil_nadu_supplier_tax_split(monkeypatch, pickup_state, intra):
+    import server
+    monkeypatch.setitem(server.SUPPLIER, "state", "Tamil Nadu")
+    gst = q(pickup_state=pickup_state, drop_state=pickup_state)["gst"]
+    if intra:
+        assert gst["igst"] == 0
+        assert gst["cgst"] + gst["sgst"] == gst["total"]
+        assert gst["supply_type"] == "Intra-State"
+    else:
+        assert gst["cgst"] == gst["sgst"] == 0
+        assert gst["igst"] == gst["total"]
+        assert gst["supply_type"] == "Inter-State"
+
+
 def test_round_half_up_and_round_off():
-    r = q()  # 890 + 44.50 = 934.50 -> 935
-    assert r["grand_total"] == 935 and r["round_off"] == 0.5
-    r = q(hours=1.5)  # 990 + 49.50 = 1039.50 -> 1040
-    assert r["grand_total"] == 1040
+    r = q()  # 1890 + 94.50 = 1984.50 -> 1985
+    assert r["grand_total"] == 1985 and r["round_off"] == 0.5
+    r = q(hours=1.5)  # 1990 + 99.50 = 2089.50 -> 2090
+    assert r["grand_total"] == 2090
 
 
 # --- Commission ---
@@ -163,9 +178,9 @@ def test_junk_removal_fee():
 
 def test_coupons():
     r = q(coupon_code="first50")
-    assert r["discount"] == 50 and r["coupon_code"] == "FIRST50" and r["taxable_value"] == 840
-    assert r["platform_commission"] == 42.0  # 5% after discount
-    assert q(coupon_code="LUGG10")["discount"] == 89.0
+    assert r["discount"] == 50 and r["coupon_code"] == "FIRST50" and r["taxable_value"] == 1840
+    assert r["platform_commission"] == 92.0  # 5% after discount
+    assert q(coupon_code="LUGG10")["discount"] == 189.0
     bad = q(coupon_code="NOPE")
     assert bad["discount"] == 0 and bad["coupon_message"] == "Invalid coupon code"
     assert q(coupon_code="MOVE200")["discount"] == 0  # below min / wrong category
@@ -177,3 +192,17 @@ def test_tip_is_not_taxed_and_goes_to_partner():
     assert tipped["grand_total"] == base["grand_total"] + 100
     assert tipped["partner_payout"] == base["partner_payout"] + 100
     assert tipped["platform_commission"] == base["platform_commission"]
+
+
+@pytest.mark.parametrize("vehicle,base,rate,total_10km", [
+    ("two_wheeler", 45, 45, 425),
+    ("three_wheeler", 125, 140, 1307),
+    ("mini_truck", 150, 175, 1628),
+])
+def test_revised_transport_rates_and_first_two_km(vehicle, base, rate, total_10km):
+    params = dict(items=[{"key": "parcel_small", "qty": 1}], vehicle_key=vehicle, helpers=0)
+    for distance in (1, 2):
+        assert q(distance_km=distance, **params)["taxable_value"] == base
+    quote = q(distance_km=10, **params)
+    assert quote["taxable_value"] == base + 8 * rate
+    assert quote["grand_total"] == total_10km

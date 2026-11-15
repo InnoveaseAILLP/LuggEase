@@ -1,5 +1,5 @@
-# Prepared only. Requires explicit billing approval, image publication,
-# a dedicated runtime identity and a reachable MongoDB secret before deployment.
+# Reference template; deployed resources and private gateway are documented in cloud-run.md.
+# Supplier settings must be supplied through the private deployment environment.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -13,19 +13,26 @@ spec:
         autoscaling.knative.dev/minScale: '0'
         autoscaling.knative.dev/maxScale: '1'
         run.googleapis.com/cpu-throttling: 'true'
+        run.googleapis.com/network-interfaces: '[{"network":"luggease-private","subnetwork":"luggease-central"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
     spec:
       serviceAccountName: luggease-api@luggease-innovease.iam.gserviceaccount.com
       containerConcurrency: 40
       timeoutSeconds: 30
       containers:
-        - image: REGION-docker.pkg.dev/luggease-innovease/apps/luggease-api:RELEASE_TAG
+        - image: us-central1-docker.pkg.dev/luggease-innovease/apps/luggease-api:f74ed8d3-ff6a-48eb-a1d0-1f0dd2b0815a
           ports:
             - containerPort: 8080
           resources:
             limits:
               cpu: '1'
               memory: 512Mi
+          volumeMounts:
+            - name: mongo-ca
+              mountPath: /var/run/luggease
           env:
+            - name: TRUST_API_GATEWAY
+              value: 'true'
             - name: APP_ENV
               value: production
             - name: APP_VERSION
@@ -37,11 +44,23 @@ spec:
             - name: DB_NAME
               value: luggease_production
             - name: CORS_ORIGINS
-              value: https://luggease-innovease.web.app,https://luggease-innovease.firebaseapp.com
+              value: https://luggease.innovease-ai.in,https://luggease-innovease.web.app,https://luggease-innovease.firebaseapp.com
+            - name: GOOGLE_MAPS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: luggease-google-places-key
+                  key: '1'
             - name: MONGO_URL
               valueFrom:
                 secretKeyRef:
                   name: luggease-mongo-url
-                  key: latest
+                  key: '1'
 # Add actual supplier settings from backend/.env.example before deployment.
 # Add payment secrets only when test/live checkout is approved and configured.
+      volumes:
+        - name: mongo-ca
+          secret:
+            secretName: luggease-mongo-ca
+            items:
+              - key: '1'
+                path: mongodb-ca.crt

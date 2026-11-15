@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-11-15T15:26:22.606402+00:00",
+  "revision": "luggease-api-00009-kwg",
+  "live_vehicle_rates": [
+    {
+      "key": "two_wheeler",
+      "base": 45,
+      "per_km": 45,
+      "max_kg": 20
+    },
+    {
+      "key": "three_wheeler",
+      "base": 125,
+      "per_km": 140,
+      "max_kg": 500
+    },
+    {
+      "key": "mini_truck",
+      "base": 150,
+      "per_km": 175,
+      "max_kg": 750
+    }
+  ],
+  "base_includes_km": 2,
+  "backend_tests_passed": 67
+}

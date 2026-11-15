@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "366550426105-94cp0okigr5hdfj7mcj4a8768d1etd4h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "in.innovease.luggease",
+            "certificate_hash": "a3d702783c9f9163ef022b28d41f4d0ece778c25"
+          }
+        },
+        {
           "client_id": "366550426105-d0kom1mhb2ec73g31fsiinskcc0bhur7.apps.googleusercontent.com",
           "client_type": 3
         }

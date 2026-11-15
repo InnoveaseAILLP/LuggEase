@@ -8,7 +8,8 @@
         "authorizedRedirectUris": [
           "https://luggease-innovease.firebaseapp.com/__/auth/handler",
           "https://luggease-innovease.web.app/__/auth/handler",
-          "http://localhost"
+          "http://localhost",
+          "https://luggease.innovease-ai.in/__/auth/handler"
         ]
       }
     }

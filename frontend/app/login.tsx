@@ -1,3 +1,4 @@
+import {Linking} from "react-native";
 import { Image } from "react-native";
 import { LinearGradient } from "@/src/components/linear-gradient";
 import { useState } from "react";
@@ -6,7 +7,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/auth";
-import { Button, Icon, Input, radius, space, useToast } from "@/src/components/ui";
+import { Button, Input, radius, space } from "@/src/components/ui";
+import { BrandIcon } from "@/src/components/brand-icon";
 import { makeStyles, useTheme } from "@/src/theme";
 
 const HERO = "https://images.unsplash.com/photo-1586781383963-8e66f88077ec?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
@@ -16,7 +18,6 @@ export default function Login() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { loginEmail, registerEmail, loginGoogle, resetPassword, resendVerification, completeVerification, logout } = useAuth();
-  const toast = useToast();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -50,10 +51,11 @@ export default function Login() {
   const google = async () => {
     if (busy || gBusy) return;
     setGBusy(true);
+    setError("");
     try {
       await loginGoogle();
     } catch (e: any) {
-      toast(e.message || "Google sign-in failed", "error");
+      setError(e.message || "Google sign-in failed. Please try again.");
     } finally {
       setGBusy(false);
     }
@@ -72,7 +74,7 @@ export default function Login() {
           <Image source={{ uri: HERO }} style={{ position: "absolute", width: "100%", height: "100%" }} resizeMode="cover" />
           <LinearGradient colors={["transparent", colors.scrim]} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "80%" }} />
           <View style={{ padding: space.xl, paddingTop: insets.top + space.xl }}>
-            <View style={s.logo}><Icon name="truck-fast" size={26} color={colors.onBrandPrimary} /></View>
+            <BrandIcon size={72} style={{marginBottom: space.md}} />
             <Text style={s.brand}>LuggEase</Text>
             <Text style={s.tag}>Shift anything, anywhere in India. Fair prices, only 5% platform fee.</Text>
           </View>
@@ -88,7 +90,7 @@ export default function Login() {
           </View>
 
           {!verification ? <View style={{ gap: space.md }}>
-            {mode === "register" ? <Input testID="register-name-input" label="Full name" value={name} onChangeText={setName} placeholder="Rahul Sharma" /> : null}
+            {mode === "register" ? <Input testID="register-name-input" label="Full name" value={name} onChangeText={setName} autoComplete="name" /> : null}
             <Input testID="auth-email-input" label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             <Input testID="auth-password-input" label="Password" value={password} onChangeText={setPassword} placeholder={mode === "register" ? "Minimum 8 characters" : "Your password"} secureTextEntry={!showPassword} autoComplete={mode === "register" ? "new-password" : "current-password"} />
             <Pressable accessibilityRole="button" onPress={() => setShowPassword(!showPassword)}><Text>{showPassword ? "Hide password" : "Show password"}</Text></Pressable>
@@ -106,7 +108,7 @@ export default function Login() {
 
           {!verification && <><View style={s.orRow}><View style={s.line} /><Text style={s.or}>or</Text><View style={s.line} /></View>
           <Button testID="google-login-button" variant="outline" icon="google" title="Continue with Google" onPress={google} loading={gBusy} disabled={busy} /></>}
-          <Text style={s.legal}>By continuing you agree to LuggEase terms. Prices include applicable GST.</Text>
+          <Text style={s.legal}><Text accessibilityRole="link" onPress={() => Linking.openURL("https://luggease.innovease-ai.in/terms.html")}>Terms of Use</Text> · <Text accessibilityRole="link" onPress={() => Linking.openURL("https://luggease.innovease-ai.in/privacy.html")}>Privacy Policy</Text>{"\n"}By continuing you agree to LuggEase terms. Prices include applicable GST.</Text>
         </View>
       </KeyboardAwareScrollView>
     </View>
@@ -116,7 +118,6 @@ export default function Login() {
 const useStyles = makeStyles((c) => ({
   root: { flex: 1, backgroundColor: c.surface },
   hero: { height: 340, justifyContent: "flex-end", backgroundColor: c.surfaceInverse, overflow: "hidden" },
-  logo: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", marginBottom: space.md },
   brand: { fontSize: 34, fontWeight: "800", color: c.onSurfaceInverse, letterSpacing: -0.5 },
   tag: { fontSize: 15, color: c.onSurfaceInverse, opacity: 0.9, marginTop: space.xs, lineHeight: 21 },
   sheet: { marginTop: -space.xl, backgroundColor: c.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: space.xl, gap: space.lg },

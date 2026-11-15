@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-11-15T15:26:22.606402+00:00",
+  "project": "luggease-innovease",
+  "website": "https://luggease.innovease-ai.in",
+  "gateway": "https://luggease-4oe2nqwp.uc.gateway.dev",
+  "private_api": "https://luggease-api-366550426105.us-central1.run.app",
+  "checks": {
+    "website_https": 200,
+    "private_api_anonymous": 403,
+    "private_api_owner_iam_health": 200,
+    "private_api_invalid_firebase": 401,
+    "gateway_anonymous": 401,
+    "gateway_cors_preflight": 200,
+    "web_google_login": "passed",
+    "iphone_google_login": "passed",
+    "web_and_iphone_orders_loading": "passed",
+    "iphone_blank_form_validation": "passed",
+    "full_name_placeholder_removed": "passed",
+    "web_google_maps_pickup_drop": "passed",
+    "oppo_google_maps_pickup_drop": "passed",
+    "oppo_final_attribution_with_keyboard": "passed",
+    "oppo_google_login_and_restore": "passed",
+    "oppo_profile_legal_tax_bank_help": "passed",
+    "android_final_release_install": "passed",
+    "iphone_final_release_install": "passed",
+    "sales_pdf_isolated_generation_authorization": "passed",
+    "sales_pdf_native_export_mock_tests": "passed",
+    "sales_pdf_physical_paid_order_export": "not exercised",
+    "revised_vehicle_rates_live": "passed",
+    "confirmed_additional_kilometre_rates_live": "passed"
+  },
+  "automated_tests": {
+    "backend_passed": 67,
+    "frontend_passed": 32
+  },
+  "limits": [
+    "No live payments or bookings created",
+    "Snapshot restores not tested",
+    "Apple free signing expires 2026-11-22",
+    "No physical paid-order PDF export was exercised",
+    "Latest iPhone Google Maps UI not manually exercised"
+  ],
+  "api_revision": "luggease-api-00009-kwg"
+}

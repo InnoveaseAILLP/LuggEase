@@ -1,3 +1,4 @@
+import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -37,7 +38,7 @@ export default function Orders() {
   return (
     <View style={s.root}>
       <View style={{ paddingTop: insets.top + space.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider }}>
-        <Text style={s.h1}>{title}</Text>
+        <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingRight: space.lg}}><Text style={s.h1}>{title}</Text><BrandIcon size={44}/></View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ height: 56, flexGrow: 0 }} contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg, alignItems: "center" }}>
           {FILTERS.map((f) => {
             const on = filter === f.key;

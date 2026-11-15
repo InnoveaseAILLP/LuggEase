@@ -65,3 +65,59 @@ npm --prefix frontend run build:web
 ```
 
 Older suites under backend/tests target a historical running preview server and legacy password login. They are not silently counted as current Firebase coverage. See the execution report for actual results and pending device/cloud scenarios.
+
+## Login and custom domain regression — 15 November 2026
+
+| Case | Expected result | Coverage |
+|---|---|---|
+| Create account full name | Empty field with no sample person's name | UI inspection |
+| Google button user gesture | Popup invoked synchronously, before asynchronous persistence work | `firebase-web.test.ts` |
+| Popup blocked | Visible instruction to allow pop-ups | Unit test |
+| Unauthorized website | Visible domain configuration error | Unit test |
+| Popup cancelled | Visible cancellation message; retry possible | Unit test |
+| Unexpected OAuth error | Original failure retained for error handling | Unit test |
+| Custom domain | Firebase site served over valid HTTPS | Live deployment check |
+| Verified Google session | API accepts Firebase identity and creates/loads the same profile | Live browser/API check |
+
+| Private API case | Expected result | Coverage |
+|---|---|---|
+| Direct Cloud Run request without IAM | HTTP 403 | Live verified |
+| Owner IAM health request | HTTP 200, status ok | Live verified |
+| Gateway business request without Firebase token | Rejected before backend access | Live gateway check |
+| Browser OPTIONS preflight | Allowed configured origin/method/headers, no business data | Live gateway check |
+| Gateway replaces Authorization | Independently verify original Firebase JWT from forwarded header | Backend unit/integration tests |
+| Unconfigured gateway trust | Ignore forwarded header | Backend regression test |
+| Empty forwarded credential | HTTP 401 | Backend regression test |
+
+
+## Address suggestions and invoice export acceptance
+
+| ID | Scenario | Expected |
+|---|---|---|
+| MAP-01 | Enter fewer than three characters | No Google search |
+| MAP-02 | Rapid pickup typing with older response delayed | Debounce requests; discard stale results |
+| MAP-03 | Select pickup and drop independently | Full addresses and Tamil Nadu state fill correctly; separate sessions |
+| MAP-04 | Search failure or no results | Visible message and manual address entry remain available |
+| MAP-05 | Anonymous, invalid session or non-India details | Reject without revealing Google credential |
+| MAP-06 | Phone keyboard overlaps suggestion list | Google Maps attribution remains above results |
+| MAP-07 | Excessive searches | Per-user limit returns 429 |
+| PDF-01 | Owner downloads paid invoice | Valid PDF attachment; no-store; correct historical supplier and totals |
+| PDF-02 | Anonymous/other customer/partner requests invoice | 401/404; no invoice data |
+| PDF-03 | Unpaid order | 409 and no sales invoice button |
+| PDF-04 | Long addresses, Tamil/Devanagari, markup in customer name | Wrapped content, literal escaped text, repeated table heading and page numbers |
+| PDF-05 | Browser export | Named PDF download with authenticated request |
+| PDF-06 | Android 10+ export | Copy to MediaStore Downloads/LuggEase; clear temporary file |
+| PDF-07 | iOS export | Native document menu offers Save to Files |
+| PDF-08 | Identity changes during download or server returns HTML | Abort export with actionable message |
+
+Automated native filesystem tests mock operating-system APIs; they do not substitute for a paid-order download on a physical phone. No production order or payment is fabricated for acceptance.
+
+
+## Revised rate regression
+
+For 2-Wheeler, 3-Wheeler and Tata Ace, check 1 km and 2 km at base fares INR 45/125/150; at 10 km and zero helpers, transport subtotals must be INR 405/1245/1550 and totals with configured 5% GST and rounding INR 425/1307/1628. Preserve half-up invoice rounding, GST split, discount calculations, 5% commission and the original quote stored on existing orders.
+
+
+## Superseding additional-kilometre rates
+
+Owner-confirmed base fares remain INR 45/125/150 for 1 km and 2 km. At 10 km with zero helpers, revised transport subtotals must be INR 405/1245/1550, and totals including configured 5% GST and rounding INR 425/1307/1628. Verify the original 2-km allowance, applicable GST split, half-up rounding, coupons and commission on the revised amounts.
