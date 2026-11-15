@@ -61,3 +61,40 @@ The reference reviewed was `HomeChef/mobileapp/HomeChef/frontend/src/FirebaseAut
 ## Acceptance and release gates
 
 Unit and integration scenarios are defined in `test-cases.md`. Release requires successful native launch, real-device interaction checks, deployed web checks, accessible API/database, valid production supplier/payment configuration, and explicit billing approval if paid Google Cloud services are used. A successful static deployment alone is not proof of working end-to-end bookings.
+
+## Approved deployment changes — 15 November 2026
+
+- The website must be available at `https://luggease.innovease-ai.in` with valid HTTPS.
+- The full-name field must start empty and must not suggest a sample person's name.
+- Google sign-in must open directly from the user action, display actionable failure messages and finish the authenticated API profile exchange.
+- Google Cloud billing is approved using My Billing Account; Firebase Spark-only hosting is superseded for the API/database deployment.
+- Cloud Run invocation must remain private. Only the dedicated, owner-approved API Gateway service account may invoke it. Mobile/web business requests must carry a Firebase ID token validated at the gateway and independently verified by the API.
+- Browser CORS preflight may be unauthenticated; it must not return business data.
+- Deploy a separate persistent database with authentication, TLS, no public IP, constrained private ingress and scheduled snapshots. Preserve existing local customer data without migrating it.
+- Install the updated production build on the iPhone 13 Pro Max and verify launch, validation, registration and the Google authentication handoff.
+
+## Billing entity and light branding update
+
+The Profile billing entity must display `Innovease AI & Technology Transformation Consulting LLP` and the registered address `D No, 4/518 Nethaji Garden, Pannimadai Road, Coimbatore North, Coimbatore- 641017, Tamil Nadu, India`. The API supplies these values centrally. Supplier GSTIN is `33AAMFI4627F1ZG`, PAN is `AAMFI4627F`, state is Tamil Nadu, bank is IDFC FIRST Bank and IFSC is `IDFB0080537`. Profile must omit Deployments & environments and support hours; Need help must show only `support@innovease-ai.in`.
+
+Use the owner's latest three-bag icon reference with an ivory/peach and light orange palette and the exact wordmark `LuggEase` at the bottom. Apply consistent artwork to in-app branding, web install icons/favicons, iOS AppIcon assets, and Android adaptive/legacy launcher assets.
+
+
+## Google Maps address suggestions and sales invoice download
+
+- Pickup and drop each provide Google Places API (New) address suggestions after three characters, debounced by 350 ms. Searches are restricted to India and use separate temporary billing sessions. Selection retrieves the full address and state; customers can add flat numbers or type manually.
+- Keep Google Maps attribution visible with suggestions. Do not persist suggestion lists. Publish Terms of Use and Privacy Policy, linked from login, describing Google Maps address processing.
+- API credentials remain in Secret Manager, restricted to Places API, and are read only by the API runtime. Require Firebase authentication, validate inputs, cap per-user requests and return safe retry/manual-entry errors. Cloud Run remains private behind its authenticated gateway.
+- Paid sales invoices expose Download Sales Invoice PDF on order details for the customer who owns the order and administrators. Other customers and partners cannot download them. Unpaid orders return no sales invoice.
+- PDFs contain supplier legal identity, invoice number/date, bill-to details, booking addresses, SAC/place of supply, charges, discounts, applicable GST split, round-off, totals, words and a separately identified tip. Snapshot supplier details on payment confirmation to preserve issued invoices.
+- Browser downloads a PDF file; Android 10+ saves to Downloads/LuggEase without broad storage permission; iOS offers its native document menu with Save to Files. Older Android opens its PDF viewer. Protected files must not have public links or credentials in URLs, and responses must not be cached.
+
+
+## Revised vehicle rates — 15 November 2026
+
+Owner-approved transport base fares include the first 2 km: 2-Wheeler (20 kg) INR 45, then INR 45/km; 3-Wheeler (500 kg) INR 125, then INR 140/km; Mini Truck/Tata Ace (750 kg) INR 150, then INR 175/km. Existing GST, labour, packing, handling, coupons, stops and commission rules continue to apply. Rates apply to newly calculated quotes; stored orders retain their booked quotes.
+
+
+## Superseding distance-rate clarification — 15 November 2026
+
+The owner explicitly confirmed retaining the first-2-km base fares INR 45/125/150, and charging **each additional kilometre** at INR 45 for 2-Wheeler, INR 140 for 3-Wheeler, and INR 175 for Tata Ace. This supersedes the earlier INR 10/16/23 distance rates. Other vehicles, tax and ancillary services remain unchanged. Existing booked quotes are retained.

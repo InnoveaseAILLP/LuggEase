@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { makeStyles, useTheme } from "@/src/theme";
 import type { OrderStatus } from "@/src/types";
+import { BrandIcon } from './brand-icon';
 
 export const Icon = MaterialDesignIcons;
 export type IconName = React.ComponentProps<typeof MaterialDesignIcons>["name"];
@@ -163,6 +164,7 @@ export function ScreenHeader({ title, subtitle, onBack, testID }: { title: strin
         <Text style={{ fontSize: 20, fontWeight: "800", color: colors.onSurface }} numberOfLines={1}>{title}</Text>
         {subtitle ? <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>{subtitle}</Text> : null}
       </View>
+      <BrandIcon size={40} />
     </View>
   );
 }

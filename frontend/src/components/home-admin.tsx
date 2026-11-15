@@ -1,3 +1,4 @@
+import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
@@ -53,7 +54,7 @@ export function AdminHome() {
         refreshControl={<RefreshControl refreshing={stats.isRefetching} onRefresh={() => { stats.refetch(); pending.refetch(); }} tintColor={colors.brandPrimary} />}
         contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.lg, paddingBottom: bottomChrome + space.xl, gap: space.md }}
       >
-        <Text style={s.h1}>Admin dashboard</Text>
+        <View style={{flexDirection: "row", alignItems: "center", gap: space.md}}><BrandIcon/><Text style={s.h1}>Admin dashboard</Text></View>
         <View style={s.grid}>
           {tiles.map((t) => (
             <Card key={t.id} style={s.tile}>

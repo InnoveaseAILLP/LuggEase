@@ -1,4 +1,4 @@
-package in.innovease.luggease
+package `in`.innovease.luggease
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

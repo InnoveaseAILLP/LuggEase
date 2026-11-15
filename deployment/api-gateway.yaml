@@ -1,0 +1,44 @@
+swagger: '2.0'
+info:
+  title: Lugg-Ease authenticated API
+  version: '1.0.0'
+schemes: [https]
+produces: [application/json]
+x-google-backend:
+  address: https://luggease-api-366550426105.us-central1.run.app
+  jwt_audience: https://luggease-api-366550426105.us-central1.run.app
+  path_translation: APPEND_PATH_TO_ADDRESS
+  deadline: 30.0
+securityDefinitions:
+  firebase:
+    type: oauth2
+    flow: implicit
+    authorizationUrl: ''
+    x-google-issuer: https://securetoken.google.com/luggease-innovease
+    x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
+    x-google-audiences: luggease-innovease
+security:
+  - firebase: []
+paths:
+  /api/{path=**}:
+    parameters:
+      - name: path
+        in: path
+        required: true
+        type: string
+    get:
+      operationId: apiGet
+      responses:
+        '200':
+          description: API response
+    post:
+      operationId: apiPost
+      responses:
+        '200':
+          description: API response
+    options:
+      operationId: apiPreflight
+      security: []
+      responses:
+        '200':
+          description: CORS preflight only

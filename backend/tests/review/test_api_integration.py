@@ -155,3 +155,74 @@ async def test_same_uid_insert_between_profile_lookups_is_not_a_legacy_collision
     monkeypatch.setattr(server,'db',type('Database',(),{'users':users})())
     profile=await server.firebase_profile({'uid':'verified-uid','email':'alice@example.com'},create=True)
     assert profile==existing
+
+@pytest.mark.asyncio
+async def test_places_require_login_and_validate_input(app, monkeypatch):
+    client, _ = app
+    assert (await client.get('/api/places/autocomplete?input=Coimbatore&session_token=abcdefghijklmnop')).status_code == 401
+    await enroll(client, 'alice')
+    stub = AsyncMock(return_value={'suggestions': [{'place_id':'abc', 'title':'Coimbatore', 'subtitle':'Tamil Nadu'}]})
+    monkeypatch.setattr(server.google_places, 'autocomplete', stub)
+    assert (await client.get('/api/places/autocomplete?input=Co&session_token=abcdefghijklmnop', headers=headers('alice'))).status_code == 422
+    result = await client.get('/api/places/autocomplete?input=Coimbatore&session_token=abcdefghijklmnop', headers=headers('alice'))
+    assert result.status_code == 200 and result.json()['suggestions'][0]['place_id'] == 'abc'
+    stub.assert_awaited_once_with('Coimbatore', 'abcdefghijklmnop')
+    details = AsyncMock(return_value={'address':'Coimbatore, Tamil Nadu, India', 'state':'Tamil Nadu', 'place_id':'abc'})
+    monkeypatch.setattr(server.google_places, 'details', details)
+    result = await client.get('/api/places/details/abc?session_token=abcdefghijklmnop', headers=headers('alice'))
+    assert result.status_code == 200 and result.json()['state'] == 'Tamil Nadu'
+    assert (await client.get('/api/places/details/abc?session_token=bad', headers=headers('alice'))).status_code == 422
+
+@pytest.mark.asyncio
+async def test_sales_invoice_private_and_only_after_payment(app):
+    from io import BytesIO
+    from pypdf import PdfReader
+    client, db = app
+    await enroll(client, 'alice'); await enroll(client, 'bob'); await enroll(client, 'driver', 'partner')
+    order = (await client.post('/api/orders', headers=headers('alice'), json=quote_body())).json()
+    path = f"/api/orders/{order['order_id']}/invoice.pdf"
+    assert (await client.get(path)).status_code == 401
+    assert (await client.get(path, headers=headers('bob'))).status_code == 404
+    assert (await client.get(path, headers=headers('alice'))).status_code == 409
+    supplier = {**server.SUPPLIER, 'name':'Historical Supplier LLP'}
+    await db.orders.update_one({'order_id': order['order_id']}, {'$set': {
+        'invoice_no':'LE/TEST/001', 'invoice_date':'2026-11-15T00:00:00Z', 'status':'paid', 'invoice_supplier':supplier}})
+    assert (await client.get(path, headers=headers('driver'))).status_code == 404
+    result = await client.get(path, headers=headers('alice'))
+    assert result.status_code == 200 and result.content.startswith(b'%PDF')
+    assert result.headers['cache-control'] == 'private, no-store'
+    assert 'LuggEase-Sales-Invoice-LE-TEST-001.pdf' in result.headers['content-disposition']
+    document = PdfReader(BytesIO(result.content))
+    content = '\n'.join(p.extract_text() for p in document.pages)
+    assert 'Historical Supplier LLP' in content and 'SALES INVOICE' in content
+    assert order['pickup_otp'] not in content
+
+@pytest.mark.asyncio
+async def test_payment_snapshots_invoice_supplier_once(app, monkeypatch):
+    import hashlib
+    import hmac
+    from types import SimpleNamespace
+    client, db = app
+    owner = await enroll(client, 'alice')
+    order = (await client.post('/api/orders', headers=headers('alice'), json=quote_body())).json()
+    await db.orders.update_one({'order_id':order['order_id']}, {'$set':{'razorpay_order_id':'test_rzp','amount_paise':10000}})
+    monkeypatch.setenv('RAZORPAY_KEY_SECRET','isolated-test-secret')
+    payment=SimpleNamespace(fetch=lambda _: {'order_id':'test_rzp','amount':10000,'currency':'INR','status':'captured','method':'test'})
+    monkeypatch.setattr(server,'rzp_client',lambda: SimpleNamespace(payment=payment))
+    signature=hmac.new(b'isolated-test-secret',b'test_rzp|test_payment',hashlib.sha256).hexdigest()
+    paid=await server.mark_paid('test_rzp','test_payment',signature,owner['user_id'])
+    assert paid['invoice_supplier']==server.SUPPLIER and paid['invoice_no']
+    original=paid['invoice_supplier']['name']
+    monkeypatch.setitem(server.SUPPLIER,'name','Future supplier name')
+    repeated=await server.mark_paid('test_rzp','test_payment',signature,owner['user_id'])
+    assert repeated['invoice_supplier']['name']==original and repeated['invoice_no']==paid['invoice_no']
+
+
+def test_places_limit_bounds_upstream_cost(monkeypatch):
+    monkeypatch.setattr(server,'_places_requests',{})
+    monkeypatch.setattr(server.time,'monotonic',lambda: 100)
+    for _ in range(60): server.limit_places({'user_id':'bounded'})
+    with pytest.raises(HTTPException) as error: server.limit_places({'user_id':'bounded'})
+    assert error.value.status_code==429
+    monkeypatch.setattr(server.time,'monotonic',lambda: 161)
+    server.limit_places({'user_id':'bounded'})

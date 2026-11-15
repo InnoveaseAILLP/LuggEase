@@ -1,4 +1,4 @@
-package in.innovease.luggease
+package `in`.innovease.luggease
 
 import android.app.Application
 import com.facebook.react.PackageList

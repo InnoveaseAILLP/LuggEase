@@ -1,3 +1,4 @@
+import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "react-native";
 import { useRouter } from "@/src/router";
@@ -57,6 +58,7 @@ export function PartnerHome() {
   const header = (
     <View style={{ gap: space.md }}>
       <View style={s.statusRow}>
+        <BrandIcon size={44}/>
         <View style={{ flex: 1 }}>
           <Text style={s.hello}>Partner cockpit</Text>
           <Text style={s.name}>{user?.partner_profile?.full_name || user?.name}</Text>

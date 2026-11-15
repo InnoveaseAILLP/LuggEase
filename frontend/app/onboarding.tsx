@@ -4,6 +4,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/auth";
+import { BrandIcon } from "@/src/components/brand-icon";
 import { Button, Icon, IconName, Input, radius, space, useToast } from "@/src/components/ui";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -40,6 +41,7 @@ export default function Onboarding() {
   return (
     <View style={s.root}>
       <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl, gap: space.lg }}>
+        <BrandIcon size={80} />
         <Text style={s.h1}>Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}</Text>
         <Text style={s.sub}>How would you like to use LuggEase?</Text>
         {OPTIONS.map((o) => {

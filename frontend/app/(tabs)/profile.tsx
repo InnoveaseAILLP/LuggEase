@@ -1,7 +1,8 @@
+import { BrandIcon } from "@/src/components/brand-icon";
 import { Image } from "react-native";
 import { useRouter } from "@/src/router";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/auth";
@@ -68,29 +69,18 @@ export default function Profile() {
           </Card>
         ) : null}
 
-        <Pressable testID="open-deployment-button" onPress={() => router.push("/deployment")} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-          <Card>
-            <View style={{ flexDirection: "row", gap: space.md, alignItems: "center" }}>
-              <Icon name="rocket-launch-outline" size={24} color={colors.brandPrimary} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.bold}>Deployment & environments</Text>
-                <Text style={s.muted}>Development · QA · Production, build info{user?.role === "admin" ? ", test users" : ""}</Text>
-              </View>
-              <Icon name="chevron-right" size={22} color={colors.muted} />
-            </View>
-          </Card>
-        </Pressable>
 
         <Card>
           <View style={{ flexDirection: "row", gap: space.md, alignItems: "center" }}>
             <Icon name="headset" size={24} color={colors.brandPrimary} />
             <View style={{ flex: 1 }}>
               <Text style={s.bold}>Need help?</Text>
-              <Text style={s.muted}>support@luggease.in · 9 AM to 9 PM</Text>
+              <Text style={s.muted}>support@innovease-ai.in</Text>
             </View>
           </View>
         </Card>
 
+        <BrandIcon size={72} style={{alignSelf: "center"}}/>
         <Button testID="logout-button" variant="danger" icon="logout" title="Log out" loading={busy} onPress={async () => { setBusy(true); await logout(); }} />
       </ScrollView>
     </View>

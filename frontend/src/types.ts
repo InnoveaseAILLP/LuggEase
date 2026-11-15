@@ -105,6 +105,7 @@ export type Order = {
   partner_name?: string | null;
   partner_phone?: string | null;
   partner_vehicle?: string | null;
+  invoice_supplier?: Catalog["supplier"];
   invoice_no?: string | null;
   invoice_date?: string | null;
   payment?: { payment_id: string; method?: string; paid_at: string } | null;

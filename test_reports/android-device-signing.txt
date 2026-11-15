@@ -1,0 +1,5 @@
+V3.0 Signer: certificate DN: CN=Lugg-Ease Android Device Test, OU=Development, O=Innovease, C=IN
+V3.0 Signer: certificate SHA-256 digest: 4cb47a231ae455b32488e070170b78a717847a5dbbcb71411b71f1cd8a855157
+V3.0 Signer: certificate SHA-1 digest: a3d702783c9f9163ef022b28d41f4d0ece778c25
+V3.0 Signer: certificate MD5 digest: 86d7b895bdb07d78097106efb87ec475
+Device-test APK: /Users/manojanandrajendiran/INNOVEASE_AI_Technology_Transformation_Consulting/Innovease AI - Products /Lugg-Ease/LuggEase/frontend/android/app/build/outputs/apk/release/app-oppo-device-test.apk

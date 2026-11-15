@@ -97,3 +97,14 @@ frontend/scripts/xcode-project/.build/
 frontend/ios/.xcode.env.local
 **/xcuserdata/
 *.xcresult/
+
+# Private Android device-test signing material
+frontend/android/.device-test-signing/
+# Generated Android build outputs
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/app/.cxx/
+frontend/android/.kotlin/
+
+# Public Vite production endpoint; credentials stay in local .env files.
+!frontend/.env.production

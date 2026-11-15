@@ -1,8 +1,11 @@
+import {useState} from "react";
+import {useAuth} from "@/src/auth";
+import {downloadInvoice} from "@/src/invoice-download";
 import { useQuery } from "@tanstack/react-query";
 import { Text, View } from "react-native";
 
 import { api } from "@/src/api";
-import { Card, inr, Row, space } from "@/src/components/ui";
+import { Button, Card, inr, Row, space, useToast } from "@/src/components/ui";
 import { useTheme } from "@/src/theme";
 import type { Catalog, Order, Quote } from "@/src/types";
 
@@ -13,6 +16,17 @@ export function useCatalog() {
 export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Order; billTo?: { name: string; email: string; gstin?: string | null } }) {
   const { colors } = useTheme();
   const { data: cat } = useCatalog();
+  const {user} = useAuth();
+  const toast = useToast();
+  const [downloading, setDownloading] = useState(false);
+  const supplier = order?.invoice_supplier ?? cat?.supplier;
+  const download = async () => {
+    if (!order?.invoice_no) return;
+    setDownloading(true);
+    try { toast(await downloadInvoice(order.order_id, order.invoice_no), "success"); }
+    catch (e: any) { toast(e.message, "error"); }
+    finally { setDownloading(false); }
+  };
   const g = quote.gst;
   const isTax = !!order?.invoice_no;
   const to = order ? { name: order.customer_name, email: order.customer_email, gstin: order.customer_gstin } : billTo;
@@ -22,11 +36,11 @@ export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Or
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View style={{ flex: 1 }}>
           <Text testID="invoice-title" style={{ fontSize: 16, fontWeight: "800", color: colors.onSurface }}>{isTax ? "TAX INVOICE" : "QUOTATION (Proforma)"}</Text>
-          {cat ? (
+          {supplier ? (
             <>
-              <Text style={[small, { color: colors.onSurfaceTertiary, fontWeight: "700", marginTop: 4 }]}>{cat.supplier.name}</Text>
-              <Text style={small}>{cat.supplier.address}</Text>
-              <Text style={small}>GSTIN: {cat.supplier.gstin} · PAN: {cat.supplier.pan}</Text>
+              <Text style={[small, { color: colors.onSurfaceTertiary, fontWeight: "700", marginTop: 4 }]}>{supplier.name}</Text>
+              <Text style={small}>{supplier.address}</Text>
+              <Text style={small}>GSTIN: {supplier.gstin} · PAN: {supplier.pan}</Text>
             </>
           ) : null}
         </View>
@@ -82,6 +96,9 @@ export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Or
           <Text style={small}>{cat.supplier.bank.bank_name}, {cat.supplier.bank.branch}</Text>
           <Text style={small}>A/c {cat.supplier.bank.account_number} · IFSC {cat.supplier.bank.ifsc}</Text>
         </View>
+      ) : null}
+      {isTax && (user?.role === "admin" || user?.user_id === order?.customer_id) ? (
+        <Button testID="download-sales-invoice" title="Download Sales Invoice PDF" icon="download" loading={downloading} onPress={download} style={{marginTop: space.md}} />
       ) : null}
     </Card>
   );
