@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter } from "@/src/router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -54,7 +54,7 @@ export default function PartnerRegister() {
       } });
       setUser(u);
       toast("Submitted for admin approval", "success");
-      router.replace("/(tabs)");
+      if (hasProfile) router.replace("/(tabs)");
     } catch (e: any) {
       toast(e.message, "error");
     } finally {

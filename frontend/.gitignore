@@ -3,12 +3,9 @@
 # dependencies
 node_modules/
 
-# Expo
-.expo/
 .metro-cache/
 dist/
 web-build/
-expo-env.d.ts
 
 # Native
 .kotlin/

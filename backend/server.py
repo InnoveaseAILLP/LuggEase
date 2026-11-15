@@ -7,7 +7,7 @@ import logging
 import math
 import os
 import uuid
-from contextlib import suppress
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Literal, Optional
@@ -22,6 +22,8 @@ from fastapi.responses import HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pymongo import ASCENDING, DESCENDING, IndexModel
+from pymongo.errors import DuplicateKeyError
+from firebase_identity import verify_identity
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
@@ -30,9 +32,12 @@ load_dotenv(ROOT_DIR / ".env")
 client = AsyncIOMotorClient(os.environ["MONGO_URL"])
 db = client[os.environ["DB_NAME"]]
 
-JWT_SECRET = os.environ["JWT_SECRET"]
-ADMIN_EMAIL = os.environ["ADMIN_EMAIL"].strip().lower()
-ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
+JWT_SECRET = os.environ.get("JWT_SECRET", "")
+ALLOW_LEGACY_AUTH = os.environ.get("ALLOW_LEGACY_AUTH", "false").lower() == "true"
+if ALLOW_LEGACY_AUTH and len(JWT_SECRET) < 32:
+    raise RuntimeError("Legacy authentication requires JWT_SECRET with at least 32 characters")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 SUPPLIER = {
     "name": os.environ["SUPPLIER_NAME"],
     "gstin": os.environ["SUPPLIER_GSTIN"],
@@ -56,6 +61,7 @@ INDEXES: dict[str, list[IndexModel]] = {
     "users": [
         IndexModel([("email", ASCENDING)], name="email", unique=True),
         IndexModel([("user_id", ASCENDING)], name="user_id", unique=True),
+        IndexModel([("firebase_uid", ASCENDING)], name="firebase_uid", unique=True, sparse=True),
         IndexModel([("role", ASCENDING), ("partner_status", ASCENDING)], name="role_status"),
     ],
     "user_sessions": [
@@ -120,9 +126,22 @@ async def ensure_indexes() -> None:
                 await db[collection].create_indexes([model])
             except Exception as exc:
                 logger.error("ensure_indexes(%s.%s): %s", collection, model.document["name"], exc)
+                if model.document.get("unique"):
+                    raise RuntimeError(f"Required unique index failed: {collection}.{model.document['name']}") from exc
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await ensure_validators()
+    await ensure_indexes()
+    await seed_admin()
+    try:
+        yield
+    finally:
+        client.close()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health", include_in_schema=False)
@@ -463,28 +482,58 @@ def issue_jwt(user_id: str) -> str:
     return jwt.encode({"sub": user_id, "iat": n, "exp": n + timedelta(days=7)}, JWT_SECRET, algorithm="HS256")
 
 
-async def current_user(request: Request) -> dict:
-    auth = request.headers.get("Authorization", "")
-    if not auth.lower().startswith("bearer "):
-        raise HTTPException(401, "Not authenticated")
-    token = auth[7:].strip()
-    user_id = None
+async def firebase_profile(claims: dict, create: bool = False) -> dict:
+    uid = claims["uid"]
+    user = await db.users.find_one({"firebase_uid": uid}, {"_id": 0})
+    if user:
+        return user
+    if not create:
+        raise HTTPException(401, "Complete account setup first")
+    # Do not link an existing privileged/legacy account just because its email matches.
+    existing = await db.users.find_one({"email": claims["email"].strip().lower()}, {"_id": 0})
+    if existing:
+        # Another request may have enrolled this same verified UID after our first lookup.
+        if existing.get("firebase_uid") == uid:
+            return existing
+        raise HTTPException(409, "Existing account requires a verified identity migration. Contact support.")
+    user = {"user_id": f"user_{uuid.uuid4().hex[:12]}", "firebase_uid": uid,
+            "email": claims["email"].strip().lower(), "name": claims.get("name") or "",
+            "picture": claims.get("picture"), "role": None, "created_at": iso(now_utc())}
     try:
-        user_id = jwt.decode(token, JWT_SECRET, algorithms=["HS256"]).get("sub")
-    except jwt.InvalidTokenError:
-        sess = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
-        if sess:
-            exp = sess["expires_at"]
-            if exp.tzinfo is None:
-                exp = exp.replace(tzinfo=timezone.utc)
-            if exp > now_utc():
-                user_id = sess["user_id"]
-    if not user_id:
-        raise HTTPException(401, "Invalid or expired session")
-    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-    if not user:
-        raise HTTPException(401, "User not found")
+        await db.users.insert_one(user)
+    except DuplicateKeyError:
+        user = await db.users.find_one({"firebase_uid": uid}, {"_id": 0})
+        if not user:
+            raise HTTPException(409, "Account already exists; contact support")
     return user
+
+
+def bearer(request: Request) -> str:
+    header = request.headers.get("Authorization", "")
+    if not header.lower().startswith("bearer ") or not header[7:].strip():
+        raise HTTPException(401, "Not authenticated")
+    return header[7:].strip()
+
+
+async def current_user(request: Request) -> dict:
+    token = bearer(request)
+    if ALLOW_LEGACY_AUTH:
+        try:
+            user_id = jwt.decode(token, JWT_SECRET, algorithms=["HS256"]).get("sub")
+        except jwt.InvalidTokenError:
+            user_id = None
+        if user_id:
+            user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+            if user:
+                return user
+    claims = await verify_identity(token)
+    return await firebase_profile(claims)
+
+
+@api.post("/auth/firebase/session")
+async def firebase_session(request: Request):
+    claims = await verify_identity(bearer(request))
+    return public_user(await firebase_profile(claims, create=True))
 
 
 def require_role(*roles: str):
@@ -508,6 +557,8 @@ class LoginBody(BaseModel):
 
 @api.post("/auth/register")
 async def register(body: RegisterBody):
+    if not ALLOW_LEGACY_AUTH:
+        raise HTTPException(410, "Use Firebase Authentication")
     email = body.email.strip().lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "An account already exists for this email")
@@ -522,43 +573,13 @@ async def register(body: RegisterBody):
 
 @api.post("/auth/login")
 async def login(body: LoginBody):
+    if not ALLOW_LEGACY_AUTH:
+        raise HTTPException(410, "Use Firebase Authentication")
     user = await db.users.find_one({"email": body.email.strip().lower()}, {"_id": 0})
     ok = bool(user and user.get("password_hash") and bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()))
     if not ok:
         raise HTTPException(401, "Invalid email or password")
     return {"token": issue_jwt(user["user_id"]), "user": public_user(user)}
-
-
-class SessionBody(BaseModel):
-    session_id: str
-
-
-@api.post("/auth/session")
-async def google_session(body: SessionBody):
-    async with httpx.AsyncClient(timeout=15) as hc:
-        r = await hc.get("https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-                         headers={"X-Session-ID": body.session_id})
-    if r.status_code != 200:
-        raise HTTPException(401, "Invalid session")
-    data = r.json()
-    email = data["email"].strip().lower()
-    existing = await db.users.find_one({"email": email}, {"_id": 0})
-    if existing:
-        user_id = existing["user_id"]
-        await db.users.update_one({"user_id": user_id}, {"$addToSet": {"providers": "google"},
-                                                          "$set": {"picture": data.get("picture")}})
-    else:
-        user_id = f"user_{uuid.uuid4().hex[:12]}"
-        await db.users.insert_one({"user_id": user_id, "email": email, "name": data.get("name") or "",
-                                   "picture": data.get("picture"), "providers": ["google"], "role": None,
-                                   "created_at": iso(now_utc())})
-    token = data["session_token"]
-    await db.user_sessions.update_one(
-        {"session_token": token},
-        {"$set": {"session_token": token, "user_id": user_id, "expires_at": now_utc() + timedelta(days=7),
-                  "created_at": now_utc()}}, upsert=True)
-    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-    return {"session_token": token, "user": public_user(user)}
 
 
 @api.get("/auth/me")
@@ -737,10 +758,12 @@ async def cancel_order(order_id: str, user=Depends(require_role("customer", "adm
     if o["status"] != "pending_payment":
         refund_note = f"Refund of ₹{refund:,.2f} will be processed to the original payment method" + (
             f" (₹{fee} cancellation fee as a partner was already assigned)" if fee else "")
-    await db.orders.update_one({"order_id": order_id}, {
+    result = await db.orders.update_one({"order_id": order_id, "status": o["status"]}, {
         "$set": {"status": "cancelled", "refund_note": refund_note, "cancellation_fee": fee, "refund_amount": refund,
                  "updated_at": iso(now_utc())},
         "$push": {"timeline": {"status": "cancelled", "at": iso(now_utc())}}})
+    if result.modified_count != 1:
+        raise HTTPException(409, "Order changed; please refresh")
     return await db.orders.find_one({"order_id": order_id}, {"_id": 0})
 
 
@@ -805,7 +828,9 @@ async def update_status(order_id: str, body: StatusBody, user=Depends(require_ro
     upd = {"status": body.status, "updated_at": n}
     if body.status == "delivered":
         upd["delivered_at"] = n
-    await db.orders.update_one({"order_id": order_id}, {"$set": upd, "$push": {"timeline": {"status": body.status, "at": n}}})
+    result = await db.orders.update_one({"order_id": order_id, "partner_id": user["user_id"], "status": o["status"]}, {"$set": upd, "$push": {"timeline": {"status": body.status, "at": n}}})
+    if result.modified_count != 1:
+        raise HTTPException(409, "Order changed; please refresh")
     return partner_view(await db.orders.find_one({"order_id": order_id}, {"_id": 0}))
 
 
@@ -965,6 +990,8 @@ async def system_info():
 
 @api.post("/admin/seed-test-users")
 async def seed_test_users(user=Depends(require_role("admin"))):
+    if not ALLOW_LEGACY_AUTH:
+        raise HTTPException(410, "Legacy demo users are unavailable with Firebase authentication")
     if APP_ENV == "production":
         raise HTTPException(403, "Test users cannot be seeded in production")
     import seed_demo
@@ -1038,7 +1065,7 @@ async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer
     if not hmac.compare_digest(expected, signature):
         raise HTTPException(400, "Invalid payment signature")
     pay = await asyncio.to_thread(rzp_client().payment.fetch, payment_id)
-    if pay.get("order_id") != rzp_order_id or pay.get("amount") != o["amount_paise"] or pay.get("status") not in ("captured", "authorized"):
+    if pay.get("order_id") != rzp_order_id or pay.get("amount") != o["amount_paise"] or pay.get("currency") != "INR" or pay.get("status") not in ("captured", "authorized"):
         raise HTTPException(400, "Payment not completed")
     if pay.get("status") == "authorized":
         await asyncio.to_thread(rzp_client().payment.capture, payment_id, o["amount_paise"], {"currency": "INR"})
@@ -1100,31 +1127,17 @@ async def payment_callback(request: Request):
 
 
 app.include_router(api)
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_credentials=False,
+                   allow_origins=[origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",") if origin.strip()],
+                   allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 
 
 async def seed_admin():
-    existing = await db.users.find_one({"email": ADMIN_EMAIL})
-    if not existing:
+    # Explicit development bootstrap only; never reset credentials or promote an existing user.
+    if APP_ENV == "production" or not ALLOW_LEGACY_AUTH or not ADMIN_EMAIL or not ADMIN_PASSWORD:
+        return
+    if not await db.users.find_one({"email": ADMIN_EMAIL}):
         await db.users.insert_one({
             "user_id": f"user_{uuid.uuid4().hex[:12]}", "email": ADMIN_EMAIL, "name": "LuggEase Admin",
             "password_hash": bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt(12)).decode(),
             "providers": ["password"], "role": "admin", "created_at": iso(now_utc())})
-    elif not bcrypt.checkpw(ADMIN_PASSWORD.encode(), existing.get("password_hash", "").encode() or b"x"):
-        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {
-            "password_hash": bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt(12)).decode(), "role": "admin"}})
-
-
-@app.on_event("startup")
-async def startup():
-    await ensure_validators()
-    app.state.index_task = asyncio.create_task(ensure_indexes())
-    await seed_admin()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    app.state.index_task.cancel()
-    with suppress(asyncio.CancelledError):
-        await app.state.index_task
-    client.close()

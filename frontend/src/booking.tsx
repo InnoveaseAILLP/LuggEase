@@ -1,4 +1,5 @@
-import { createContext, ReactNode, useContext, useState } from "react";
+import { useAuth } from "@/src/auth";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
 export type Draft = {
   pickup_address: string;
@@ -50,7 +51,9 @@ type Ctx = { draft: Draft; update: (p: Partial<Draft>) => void; reset: (p?: Part
 const BookingCtx = createContext<Ctx | null>(null);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [draft, setDraft] = useState<Draft>(initial);
+  useEffect(() => { setDraft({ ...initial, items: {}, extra_stops: [] }); }, [user?.user_id]);
   const update = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
   const reset = (p: Partial<Draft> = {}) => setDraft({ ...initial, ...p });
   return <BookingCtx.Provider value={{ draft, update, reset }}>{children}</BookingCtx.Provider>;

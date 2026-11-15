@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { Image } from "react-native";
+import { useRouter } from "@/src/router";
 import { useState } from "react";
 import { FlatList, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -105,7 +105,7 @@ export function PartnerHome() {
         ListHeaderComponent={header}
         ListEmptyComponent={approved && !jobs.isLoading ? (
           <View testID="jobs-empty-state" style={{ alignItems: "center", gap: space.md, paddingVertical: space.lg }}>
-            <Image source={{ uri: EMPTY }} style={{ width: "100%", height: 160, borderRadius: radius.lg }} contentFit="cover" />
+            <Image source={{ uri: EMPTY }} style={{ width: "100%", height: 160, borderRadius: radius.lg }} resizeMode="cover" />
             <Text style={s.cardTitle}>No open jobs near you</Text>
             <Text style={[s.cardSub, { textAlign: "center" }]}>Pull down to refresh. New bookings appear here instantly.</Text>
           </View>

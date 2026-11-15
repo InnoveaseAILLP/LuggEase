@@ -1,29 +1,5 @@
-// Native storage (Metro auto-picks index.web.ts on web — do NOT add Platform.OS checks).
-//
-// Import the ready-made singleton BY NAME and call methods on it — never a default
-// import, never the methods bare:
-//   import { storage } from "@/src/utils/storage";
-//   await storage.getItem(key, fallback);      // the `fallback` arg is REQUIRED
-//
-// Namespaces: general KV -> getItem/setItem/removeItem (AsyncStorage);
-//             tokens/secrets -> secureGet/secureSet/secureRemove (Keychain).
-// Values are auto JSON-serialized (string|number|boolean|null) in this implementation — never JSON.stringify/parse yourself.
-// Helpers NEVER throw: a miss returns `fallback`, a failed write returns `false` (failures are SILENT).
-//
-// Use async/await for all storage operations.
-//
-// AUTH TOKENS: use ONE namespace (secure*) + ONE shared key constant, and read/write it the SAME
-// way on both sides — the login/AuthContext (write) and the API client/interceptor (read). A
-// mismatched method or key silently returns the fallback, surfacing as a logged-out state or 401/403
-// with no error in the logs.
-//
-// KEY NAMES: expo-secure-store only accepts [A-Za-z0-9._-]. A key like "auth:token" or "user/session"
-// makes every secureSet throw on a phone; the helper swallows it, so the token is never saved and
-// login/sign-up silently loop. The web preview does not catch this (no Keychain there).
-// Use plain names: "auth_token", "refresh_token".
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
+import * as Keychain from "react-native-keychain";
 
 import { AssertNoExtras, StorageBase, StorageItemValue } from "./storage-base";
 
@@ -68,13 +44,14 @@ export class Storage extends StorageBase {
 
   // Sensitive values — Keychain (iOS) / EncryptedSharedPreferences (Android).
   // Use these (not getItem) for auth tokens; whatever writes with secureSet must read with secureGet under the same key.
-  // Key must match /^[A-Za-z0-9._-]+$/ — no ":", "/" or spaces — or SecureStore throws and nothing is stored.
+  // Key must match /^[A-Za-z0-9._-]+$/ — no ":", "/" or spaces — or Keychain throws and nothing is stored.
   async secureGet<Fallback extends StorageItemValue>(
     key: string,
     fallback: Fallback,
   ): Promise<Fallback | null> {
     try {
-      const raw = await SecureStore.getItemAsync(key);
+      const entry = await Keychain.getGenericPassword({ service: key });
+      const raw = entry ? entry.password : null;
       return this.retrieve(raw, fallback);
     } catch (e) {
       this.warn("secureGet", key, e);
@@ -87,7 +64,7 @@ export class Storage extends StorageBase {
     value: Value,
   ): Promise<boolean> {
     try {
-      await SecureStore.setItemAsync(key, JSON.stringify(value));
+      await Keychain.setGenericPassword(key, JSON.stringify(value), { service: key, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
       return true;
     } catch (e) {
       this.warn("secureSet", key, e);
@@ -97,7 +74,7 @@ export class Storage extends StorageBase {
 
   async secureRemove(key: string): Promise<boolean> {
     try {
-      await SecureStore.deleteItemAsync(key);
+      await Keychain.resetGenericPassword({ service: key });
       return true;
     } catch (e) {
       this.warn("secureRemove", key, e);
@@ -110,5 +87,4 @@ export class Storage extends StorageBase {
 export const storage = new Storage();
 
 // Compile-time guard: any new method must be declared in storage-base.ts first.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentional compile-time-only assertion
 type _NoExtras = AssertNoExtras<Exclude<keyof Storage, keyof StorageBase>>;

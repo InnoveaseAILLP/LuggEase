@@ -1,3 +1,2 @@
-import { Platform } from "react-native";
-
-export const usesNativeTabs = Platform.OS === "ios" && parseInt(String(Platform.Version), 10) >= 26;
+// Bottom tabs are rendered by React Navigation on every platform.
+export const usesNativeTabs = false;

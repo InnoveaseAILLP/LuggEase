@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import Constants from "expo-constants";
-import { useRouter } from "expo-router";
+import { appMetadata } from "@/src/config";
+import { useRouter } from "@/src/router";
 import { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +18,7 @@ async function probe(url: string): Promise<Health> {
   const t = Date.now();
   try {
     const r = await fetch(`${url}/api/system/info`);
-    const d = await r.json();
+    const d = await r.json() as Partial<Health>;
     return { ok: r.ok, ms: Date.now() - t, ...d };
   } catch {
     return { ok: false, ms: Date.now() - t };
@@ -37,14 +37,14 @@ export default function Deployment() {
   const [seeded, setSeeded] = useState<{ email: string; role: string }[] | null>(null);
   const health = useQuery({ queryKey: ["env-health"], queryFn: () => Promise.all(ENVIRONMENTS.map((e) => probe(e.url))) });
 
-  const runtime = Constants.executionEnvironment === "storeClient" ? "Expo Go (preview)" : Platform.OS === "web" ? "Web preview" : "Standalone native build";
+  const runtime = Platform.OS === "web" ? "Web" : "Native build";
 
   const switchTo = async (env: AppEnv) => {
     if (env === active) return;
+    await logout();
     await setEnv(env);
     setActive(env);
     toast(`Switched to ${ENVIRONMENTS.find((e) => e.key === env)?.label}. Please sign in again.`, "info");
-    await logout();
   };
 
   const seed = async () => {
@@ -66,11 +66,11 @@ export default function Deployment() {
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: insets.bottom + space.xl }}>
         <Card>
           <SectionTitle>This build</SectionTitle>
-          <Row label="App version" value={Constants.expoConfig?.version ?? "1.0.0"} testID="build-version" />
+          <Row label="App version" value={appMetadata.version} testID="build-version" />
           <Row label="Runs as" value={runtime} testID="build-runtime" />
           <Row label="Platform" value={`${Platform.OS} ${Platform.Version ?? ""}`} />
           <Row label="Built for" value={ENVIRONMENTS.find((e) => e.key === BUILD_ENV)?.label ?? BUILD_ENV} testID="build-env" />
-          <Row label="Bundle ID" value={Platform.OS === "ios" ? Constants.expoConfig?.ios?.bundleIdentifier ?? "-" : Constants.expoConfig?.android?.package ?? "-"} />
+          <Row label="Bundle ID" value={appMetadata.applicationId} />
         </Card>
 
         <SectionTitle>Environments</SectionTitle>
@@ -98,7 +98,7 @@ export default function Deployment() {
                   {h?.ok ? <Text style={s.muted}>Server v{h.version} · env {h.env} · db {h.database} · {h.payments}</Text> : null}
                 </View>
               ) : (
-                <Text style={[s.muted, { marginTop: space.sm }]}>Add the {e.key === "qa" ? "EXPO_PUBLIC_QA_BACKEND_URL" : "EXPO_PUBLIC_PROD_BACKEND_URL"} value once this environment is deployed.</Text>
+                <Text style={[s.muted, { marginTop: space.sm }]}>Add the {e.key === "qa" ? "APP_QA_BACKEND_URL" : "APP_PROD_BACKEND_URL"} value once this environment is deployed.</Text>
               )}
             </Pressable>
           );

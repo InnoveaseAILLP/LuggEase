@@ -59,8 +59,8 @@ export function useTheme(): { scheme: ColorScheme; colors: ThemeColors } {
   return { scheme, colors: themes[scheme] ?? themes.light };
 }
 
-export function makeStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
-  factory: (colors: ThemeColors) => T & StyleSheet.NamedStyles<any>,
+export function makeStyles<T extends Record<keyof T, import("react-native").ViewStyle | import("react-native").TextStyle | import("react-native").ImageStyle>>(
+  factory: (colors: ThemeColors) => T,
 ): () => T {
   return function useStyles(): T {
     const { colors } = useTheme();

@@ -2,7 +2,7 @@
 // shows a reload screen instead of a blank app; the error is also logged so
 // it shows up in the Metro output. Do not mount additional boundaries.
 
-import { reloadAppAsync } from "expo";
+
 import { Component, type ErrorInfo, type PropsWithChildren, useState } from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 
@@ -39,7 +39,8 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
 
   const handleReload = async () => {
     try {
-      await reloadAppAsync();
+      if (Platform.OS === "web") window.location.reload();
+      else resetError();
     } catch {
       // Reload is unavailable in some environments; retry the render instead.
       resetError();

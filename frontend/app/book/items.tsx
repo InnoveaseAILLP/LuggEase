@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter } from "@/src/router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

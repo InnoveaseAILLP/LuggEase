@@ -1,5 +1,5 @@
-import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { Image } from "react-native";
+import { useRouter } from "@/src/router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

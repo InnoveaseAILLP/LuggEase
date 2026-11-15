@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { Image } from "react-native";
+import { LinearGradient } from "@/src/components/linear-gradient";
+import { useRouter } from "@/src/router";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -52,7 +52,7 @@ export function CustomerHome() {
         contentContainerStyle={{ paddingBottom: bottomChrome + space.xl }}
       >
         <View style={s.hero}>
-          <Image source={{ uri: HERO }} style={{ position: "absolute", width: "100%", height: "100%" }} contentFit="cover" />
+          <Image source={{ uri: HERO }} style={{ position: "absolute", width: "100%", height: "100%" }} resizeMode="cover" />
           <LinearGradient colors={["transparent", colors.scrim]} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "85%" }} />
           <View style={{ padding: space.xl, paddingTop: insets.top + space.lg }}>
             <Text style={s.hello}>Hi {user?.name?.split(" ")[0] || "there"}</Text>

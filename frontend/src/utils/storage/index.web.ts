@@ -1,11 +1,3 @@
-// Web storage (Metro picks index.ts on native).
-// Helpers never throw: reads return `fallback`, writes return `false`.
-// Values supported: string | number | boolean | null (JSON-serialized on disk).
-// Usage: import { storage } from "@/src/utils/storage"; await storage.getItem(key, fallback);
-// No Keychain on web — secure* helpers reuse AsyncStorage (no expo-secure-store).
-// Because of that, a key SecureStore rejects on native (":" "/" spaces) works here, so the web preview
-// never shows the bug. Keep secure keys to [A-Za-z0-9._-] ("auth_token"), same as index.ts.
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AssertNoExtras, StorageBase, StorageItemValue } from "./storage-base";
@@ -71,5 +63,4 @@ export class Storage extends StorageBase {
 export const storage = new Storage();
 
 // Compile-time guard: any new method must be declared in storage-base.ts first.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentional compile-time-only assertion
 type _NoExtras = AssertNoExtras<Exclude<keyof Storage, keyof StorageBase>>;

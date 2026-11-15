@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>366550426105-rrq8of90hp2g36t8iiup0ffd0l987t8u.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.366550426105-rrq8of90hp2g36t8iiup0ffd0l987t8u</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAx054RcLw6PRMx-xD1CLMmhSW0Kyf3qGg</string>
+	<key>GCM_SENDER_ID</key>
+	<string>366550426105</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>in.innovease.luggease</string>
+	<key>PROJECT_ID</key>
+	<string>luggease-innovease</string>
+	<key>STORAGE_BUCKET</key>
+	<string>luggease-innovease.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:366550426105:ios:204dc0f35cdac50cb2dd28</string>
+</dict>
+</plist>

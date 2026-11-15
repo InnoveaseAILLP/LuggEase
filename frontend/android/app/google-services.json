@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "366550426105",
+    "project_id": "luggease-innovease",
+    "storage_bucket": "luggease-innovease.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:366550426105:android:b62997f49514979eb2dd28",
+        "android_client_info": {
+          "package_name": "in.innovease.luggease"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "366550426105-d0kom1mhb2ec73g31fsiinskcc0bhur7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCO7RTkBX1PSPFdls9UfMsPwgLI_zyXhPU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "366550426105-d0kom1mhb2ec73g31fsiinskcc0bhur7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "366550426105-rrq8of90hp2g36t8iiup0ffd0l987t8u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "in.innovease.luggease"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,4 @@
-import { MaterialDesignIcons } from "@react-native-vector-icons/material-design-icons";
+import { MaterialDesignIcons } from "@react-native-vector-icons/material-design-icons/static";
 import { createContext, ReactNode, useCallback, useContext, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleProp, Text, TextInput, TextInputProps, View, ViewStyle } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -45,6 +45,8 @@ export function Button({
   return (
     <Pressable
       testID={testID}
+      accessibilityRole="button"
+      accessibilityState={{disabled: !!off, busy: !!loading}}
       onPress={onPress}
       disabled={off}
       style={({ pressed }) => [
@@ -94,7 +96,7 @@ export function Input({ label, style, ...props }: TextInputProps & { label?: str
   return (
     <View style={{ gap: 2 }}>
       {label ? <Text style={s.label}>{label}</Text> : null}
-      <TextInput placeholderTextColor={colors.muted} style={[s.input, props.multiline && { paddingVertical: space.md, minHeight: 72, textAlignVertical: "top" }, style]} {...props} />
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} style={[s.input, props.multiline && { paddingVertical: space.md, minHeight: 72, textAlignVertical: "top" }, style]} {...props} />
     </View>
   );
 }

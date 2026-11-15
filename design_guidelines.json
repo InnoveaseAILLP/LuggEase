@@ -76,12 +76,12 @@
   },
   "platform_libraries": {
     "glass": {
-      "ios": "expo-glass-effect",
-      "android": "expo-blur",
+      "ios": "react-native View",
+      "android": "react-native View",
       "low_end_android_fallback": "solid surfaceSecondary"
     },
-    "image": "expo-image",
-    "blur": "expo-blur",
+    "image": "react-native Image",
+    "blur": "react-native View",
     "bottom_sheet": "@gorhom/bottom-sheet",
     "animation": "react-native-reanimated",
     "gesture": "react-native-gesture-handler"
