@@ -144,3 +144,20 @@ Owner-confirmed base fares remain INR 45/125/150 for 1 km and 2 km. At 10 km wit
 | MAN-PICKUP-01 | Real customer reviews both documents and draws two signatures after loading; confirm departure guard and PDF images. | Pending supervised pickup acceptance |
 
 Automated workflow tests use isolated data and mocked external providers. They do not establish completion of real signatures, a real journey or provider sandbox checkout.
+
+
+## Agreement layout / status gate cases
+
+| ID | Expected result | Validation |
+| --- | --- | --- |
+| DOC-02 | Version 2 agreement includes supplier snapshot, customer, itemized goods, 50/50 schedule, branding image and private PDF headers. | Backend workflow integration and rendered PDF visual inspection |
+| MAP-02 | Live map and sharing unavailable for pending payment, paid, assigned, picked up, delivered and cancelled statuses. | shipment-tracking.test.tsx and protected backend tracking routes |
+| MAP-03 | In-transit map opens; leaving transit closes it and stops GPS. A late permission response cancels its watcher. | shipment-tracking.test.tsx |
+| MAP-04 | Backgrounding stops sharing. ETA midnight/21:00 boundaries and partner revision permissions remain correct. | Frontend tracking and backend workflow tests |
+
+The customer-provided agreement was reformatted as a separate unsigned copy, retaining all ten listed goods and the quoted INR 1,916 total. This does not record acceptance or create a new booking.
+
+
+## Complete delivery simulation
+
+`backend/tests/review/test_delivery_simulation.py` covers real route handlers from agreement review through advance, partner visibility/acceptance, loading signatures, pickup balance, OTP, picked up, in transit, private synthetic GPS, recipient acknowledgement, delivered, signed invoice export and five-star comments. Unrelated users, premature completion, blank signatures, missing arrival/goods acknowledgements and duplicate feedback are rejected. `frontend/__tests__/order-delivery.test.tsx` checks partner status controls, final-signature gating and five-star comment submission; delivery-navigation.test.ts checks encoded destinations/stops and URL bounds. See delivery-simulation.md for observed results and limitations.

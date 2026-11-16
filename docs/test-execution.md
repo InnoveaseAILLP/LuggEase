@@ -6,9 +6,9 @@ Updated 16 November 2026 • Lugg-Ease • See latest release status below; date
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Backend pricing, identity contract and isolated API integration | 89 passed | test_reports/review-backend.xml |
+| Backend pricing, identity contract and isolated API integration | 91 passed | test_reports/review-backend.xml |
 | API integration against a dedicated real MongoDB instance | 10 passed: 9 API cases and 1 deterministic race regression | test_reports/review-real-mongo.xml |
-| Frontend validation, API transport, auth lifecycle, draft privacy and agreement review | 33 passed | test_reports/review-frontend.json |
+| Frontend validation, API transport, auth lifecycle, draft privacy, agreement review, checkout, tracking and delivery controls | 53 passed | test_reports/review-frontend.json |
 | TypeScript | Passed | npm run typecheck |
 | ESLint | Passed | npm run lint |
 | Production browser bundle | Passed | Vite production build |
@@ -130,3 +130,29 @@ Remaining acceptance: supervised customer pickup signatures and a real foregroun
 Using the existing LLP merchant Test Mode account and an isolated in-memory database, completed a sample INR 47 invoice as two real provider **test** checkouts of INR 23.50 each. The owner clicked Success on each provider mock-bank popup. Application payment functions verified the provider HMAC receipt and fetched payment status; repeated receipt submissions were idempotent. The balance was rejected before the synthetic pickup/signature checkpoint, and accepted afterwards. Both payments were independently fetched from Razorpay and confirmed captured in INR. No real money moved and no production shipment/database was used.
 
 Evidence: `test_reports/razorpay-sandbox.json` and `screenshots/razorpay-two-instalments-passed.jpg`. The harness reuses `instalments.py` directly and does not import the production server or connect to MongoDB. It does not prove the full Firebase-authenticated mobile checkout, physical loading or real customer signatures. Production collection remains disabled until live merchant configuration is separately supplied.
+
+
+## Agreement layout and In-transit-only tracking update — 16 November 2026
+
+Backend regression: 90 passed. Frontend regression: 48 passed, including new native checkout and tracking lifecycle cases. TypeScript, ESLint and web/Android release builds passed. The uploaded agreement was reformatted and all final pages visually reviewed: two pages, ten goods retained, original quoted total unchanged, full supplier/customer details and branding. Existing accepted documents are preserved; new agreements use version 2. A pre-existing flaky invoice test was corrected to use a unique private-code sentinel instead of checking whether a random four-digit code coincidentally appeared inside a tax identifier.
+
+Both tracking reads and writes reject non-transit states. UI tests cover all non-transit statuses, leaving transit, app background and delayed location permission completion. These are isolated tests; a physical parcel journey and customer handwritten signature remain supervised acceptance checks, not claimed as completed.
+
+
+Release verification for this update: Cloud Run revision `luggease-api-00011-vcc` serves 100% traffic (image `2c72a3cc-208a-4937-bfa2-a1ca8d5bb0e0`); Hosting version `75fe147d3bcc8b2c` published successfully. The website returned 200 and anonymous direct Cloud Run access remained 403. Android and iOS release builds and installations succeeded. Oppo UI checks passed after unlock: saved login, existing unpaid order/ETA, In-transit-only live-map notice with no map button, and successful agreement PDF download with the corrected filename. Evidence: test_reports/oppo-agreement-map-check.json. The signed-agreement integration additionally confirms that the signature appendix does not modify the originally accepted document or its SHA-256 hash.
+
+
+## NEFT / RTGS beneficiary correction — 16 November 2026
+
+Updated the configured beneficiary account name, account number, IFSC, bank and branch from the owner's supplied details. The Profile billing section now exposes clearly labeled beneficiary details and wraps the long LLP account name. New invoice PDFs include NEFT / RTGS instructions from the invoice supplier snapshot; existing issued supplier snapshots remain unchanged. The bank customer ID is not required for incoming transfers and is not displayed. No bank transaction or external merchant settlement-account change was performed.
+
+Validation: two relevant backend invoice/signature regressions passed; generated sample PDF text matched all supplied payment fields and its page was visually checked without clipping. Web TypeScript and production build passed. Native build/install and live profile checks are recorded after completion.
+
+
+## Complete delivery simulation — 16 November 2026
+
+91 backend tests and 53 frontend tests passed, plus TypeScript and ESLint. The new isolated customer/partner simulation covers all requested lifecycle statuses, synthetic GPS arrival, final customer invoice signature and five-star comments. Duplicate reviews are prevented with an atomic order update before rating-stat increments. The Google Maps public-address route preview succeeded on the Oppo. Deployment: API revision luggease-api-00013-ckn; Hosting 974e87cf4a260c5c; updated Android/iPhone builds installed successfully. See delivery-simulation.md for the distinction between isolated API/component tests, physical route preview and an actual journey.
+
+The earlier bank correction is live, including the beneficiary name/account/IFSC/bank/branch. The customer ID is excluded from payment instructions. No NEFT, RTGS or merchant settlement transaction was performed.
+
+Final device check: Oppo restored the saved customer login after the latest update. Profile displayed the supplied beneficiary name, account number, IFSC, IDFC FIRST Bank and Coimbatore Sai Baba colony Branch correctly, with no clipping. Screenshot: screenshots/android-oppo-bank-corrected.png. The temporary USB stay-awake setting was restored and confirmed as zero.

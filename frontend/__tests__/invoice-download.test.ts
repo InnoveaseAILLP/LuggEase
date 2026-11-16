@@ -1,7 +1,7 @@
 import {Platform} from 'react-native';
 import {fs, media, open} from 'react-native-blob-util';
 import {apiPdf} from '../src/api';
-import {downloadInvoice} from '../src/invoice-download';
+import {downloadInvoice,downloadDocument} from '../src/invoice-download';
 jest.mock('../src/api', () => ({apiPdf:jest.fn()}));
 jest.mock('react-native-blob-util', () => ({
   fs:{dirs:{CacheDir:'/cache'},writeFile:jest.fn().mockResolvedValue(1),unlink:jest.fn().mockResolvedValue(undefined),ls:jest.fn().mockResolvedValue([])},
@@ -32,4 +32,12 @@ test('iOS opens the system document menu with Save to Files', async () => {
   await expect(downloadInvoice('order1','LE/001')).resolves.toContain('Save to Files');
   expect(open.optionsMenu).toHaveBeenCalledWith(expect.stringContaining('.pdf'));
   expect(media.copyToMediaStore).not.toHaveBeenCalled();
+});
+
+test('transfer agreements download with an agreement filename rather than sales invoice', async () => {
+  Object.defineProperty(Platform,'OS',{value:'android',configurable:true});
+  Object.defineProperty(Platform,'Version',{value:31,configurable:true});
+  await downloadDocument('/agreements/LTA-TEST/document.pdf','LTA-TEST');
+  expect(apiPdf).toHaveBeenCalledWith('/agreements/LTA-TEST/document.pdf');
+  expect(media.copyToMediaStore).toHaveBeenCalledWith(expect.objectContaining({name:expect.stringMatching(/^LuggEase-Transfer-Agreement-LTA-TEST-/)}),'Download',expect.stringContaining('/cache/'));
 });

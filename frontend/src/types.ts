@@ -93,6 +93,9 @@ export type Order = {
   payments?: {payment_id:string;razorpay_order_id:string;stage:string;amount_paise:number;paid_at:string}[];
   delivery_estimate?: DeliveryEstimate;
   agreement_id?: string;
+  requires_delivery_signature?: boolean;
+  delivery_signature_completed_at?: string;
+  delivery_recipient_name?: string;
   requires_pickup_signatures?: boolean;
   pickup_signatures_completed_at?: string;
   traffic_surcharge?: {amount:number;reason:string;status:string;evidence_id:string;traffic_delay_seconds?:number;invoice_no?:string};

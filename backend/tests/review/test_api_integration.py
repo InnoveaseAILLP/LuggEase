@@ -192,9 +192,10 @@ async def test_sales_invoice_private_and_only_after_payment(app):
     assert (await client.get(path)).status_code == 401
     assert (await client.get(path, headers=headers('bob'))).status_code == 404
     assert (await client.get(path, headers=headers('alice'))).status_code == 409
+    order['pickup_otp']='PRIVATE-PICKUP-CODE-SENTINEL'
     supplier = {**server.SUPPLIER, 'name':'Historical Supplier LLP'}
     await db.orders.update_one({'order_id': order['order_id']}, {'$set': {
-        'invoice_no':'LE/TEST/001', 'invoice_date':'2026-11-15T00:00:00Z', 'status':'paid', 'invoice_supplier':supplier}})
+        'pickup_otp':order['pickup_otp'], 'invoice_no':'LE/TEST/001', 'invoice_date':'2026-11-15T00:00:00Z', 'status':'paid', 'invoice_supplier':supplier}})
     assert (await client.get(path, headers=headers('driver'))).status_code == 404
     result = await client.get(path, headers=headers('alice'))
     assert result.status_code == 200 and result.content.startswith(b'%PDF')
@@ -204,6 +205,7 @@ async def test_sales_invoice_private_and_only_after_payment(app):
     content = '\n'.join(p.extract_text() for p in document.pages)
     assert 'Historical Supplier LLP' in content and 'SALES INVOICE' in content
     assert order['pickup_otp'] not in content
+    assert 'pickup otp' not in content.lower() and 'pickup code' not in content.lower()
 
 @pytest.mark.asyncio
 async def test_payment_snapshots_invoice_supplier_once(app, monkeypatch):

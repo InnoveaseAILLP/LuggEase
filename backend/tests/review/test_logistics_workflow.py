@@ -51,7 +51,12 @@ async def test_agreement_requires_ownership_review_before_booking(app,monkeypatc
     document=await client.get(path+'/document.pdf',headers=headers('alice'))
     assert document.content.startswith(b'%PDF') and document.headers['cache-control']=='private, no-store'
     text='\n'.join(p.extract_text() for p in PdfReader(BytesIO(document.content)).pages)
-    assert 'Logistics Transfer Agreement' in text and 'sofa' in text.lower() and 'Awaiting customer review' in text
+    assert 'LOGISTICS TRANSFER AGREEMENT' in text and 'sofa' in text.lower() and 'Awaiting customer review' in text
+    assert a['version']==2 and a['supplier']['name']==server.SUPPLIER['name']
+    assert server.SUPPLIER['name'] in text and 'Customer / consignor' in text
+    assert 'Booking advance - 50%' in text and 'Pickup balance - remaining 50%' in text
+    assert 'No Aadhaar authentication is required' in ' '.join(text.split())
+    assert any(page.images for page in PdfReader(BytesIO(document.content)).pages)
     assert (await client.get(path,headers=headers('bob'))).status_code==404
     assert (await client.get(path+'/document.pdf',headers=headers('bob'))).status_code==404
     body={'ownership_confirmed':True,'agreement_sha256':a['document_sha256']}
@@ -111,6 +116,10 @@ async def test_tracking_private_recent_and_bounded_to_active_trip(app):
     assert (await client.post(path,headers=headers('driver'),json={**body,'mocked':True})).status_code==422
     assert (await client.post(path,headers=headers('driver'),json={**body,'latitude':91})).status_code==422
     assert (await client.post(path,headers=headers('driver'),json={**body,'captured_at':'2020-01-01T00:00:00Z'})).status_code==422
+    await db.orders.update_one({'order_id':o['order_id']},{'$set':{'status':'picked_up'}})
+    assert (await client.post(path,headers=headers('driver'),json=body)).status_code==409
+    assert (await client.get(path,headers=headers('alice'))).status_code==409
+    await db.orders.update_one({'order_id':o['order_id']},{'$set':{'status':'in_transit'}})
     assert (await client.post(path,headers=headers('driver'),json=body)).status_code==200
     assert (await client.post(path,headers=headers('driver'),json=body)).status_code==429
     data=(await client.get(path,headers=headers('alice'))).json()
@@ -118,7 +127,7 @@ async def test_tracking_private_recent_and_bounded_to_active_trip(app):
     assert 'partner_id' not in data['points'][0]
     await db.orders.update_one({'order_id':o['order_id']},{'$set':{'status':'delivered'}})
     assert (await client.post(path,headers=headers('driver'),json=body)).status_code==409
-    assert not (await client.get(path,headers=headers('alice'))).json()['sharing_active']
+    assert (await client.get(path,headers=headers('alice'))).status_code==409
 
 
 def signature(blank=False):
@@ -189,3 +198,35 @@ async def test_traffic_rejection_does_not_create_invoice(app):
     assert (await client.post(f'/api/orders/{oid}/traffic-charge/decision',headers=headers('alice'),json={'accept':False})).status_code==200
     record=await db.orders.find_one({'order_id':oid})
     assert record['traffic_surcharge']['status']=='rejected' and 'invoice_no' not in record['traffic_surcharge']
+
+
+@pytest.mark.asyncio
+async def test_signed_agreement_retains_original_document_and_appends_private_signature(app,monkeypatch):
+    import hashlib
+    client,db=app
+    await enroll(client,'alice');await enroll(client,'bob');driver=await enroll(client,'driver','partner')
+    monkeypatch.setattr(server,'validate_booking_agreement',server.real_validate_booking_agreement)
+    a=(await client.post('/api/agreements/prepare',headers=headers('alice'),json=quote_body())).json()
+    agreement_path='/api/agreements/'+a['agreement_id']
+    original=await client.get(agreement_path+'/document.pdf',headers=headers('alice'))
+    assert hashlib.sha256(original.content).hexdigest()==a['document_sha256']
+    await client.post(agreement_path+'/accept',headers=headers('alice'),json={'ownership_confirmed':True,'agreement_sha256':a['document_sha256']})
+    o=(await client.post('/api/orders',headers=headers('alice'),json={**quote_body(),'agreement_id':a['agreement_id']})).json();oid=o['order_id']
+    # Isolated fixture checkpoint only; no provider payment or actual customer signature.
+    await db.orders.update_one({'order_id':oid},{'$set':{'status':'assigned','partner_id':driver['user_id'],'invoice_no':'SAMPLE-TEST-001'}})
+    body={'invoice_signature':signature(),'agreement_signature':signature(),'pickup_otp':o['pickup_otp'],'customer_name':'Synthetic Customer','goods_loaded_and_checked':True,'customer_present':True}
+    response=await client.post(f'/api/orders/{oid}/pickup-signatures',headers=headers('driver'),json=body)
+    assert response.status_code==200,response.text
+    signed_path=f'/api/orders/{oid}/transfer-agreement.pdf'
+    assert (await client.get(signed_path,headers=headers('bob'))).status_code==404
+    signed=await client.get(signed_path,headers=headers('alice'))
+    assert signed.status_code==200 and signed.headers['cache-control']=='private, no-store'
+    original_pages=PdfReader(BytesIO(original.content)).pages
+    signed_pages=PdfReader(BytesIO(signed.content)).pages
+    assert len(signed_pages)==len(original_pages)+1
+    assert [p.extract_text() for p in signed_pages[:-1]]==[p.extract_text() for p in original_pages]
+    assert 'Synthetic Customer' in signed_pages[-1].extract_text() and signed_pages[-1].images
+    preserved=await client.get(agreement_path+'/document.pdf',headers=headers('alice'))
+    assert preserved.content==original.content
+    stored=await db.transfer_agreements.find_one({'agreement_id':a['agreement_id']})
+    assert stored['document_sha256']==hashlib.sha256(original.content).hexdigest()
