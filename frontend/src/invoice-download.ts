@@ -10,8 +10,8 @@ function base64(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
-export async function downloadInvoice(orderId: string, invoiceNo: string) {
-  const blob = await apiPdf(`/orders/${encodeURIComponent(orderId)}/invoice.pdf`);
+export async function downloadDocument(apiPath: string, invoiceNo: string) {
+  const blob = await apiPdf(apiPath);
   const name = `LuggEase-Sales-Invoice-${invoiceNo.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80)}-${Date.now()}.pdf`;
   const path = `${fs.dirs.CacheDir}/${name}`;
   await fs.writeFile(path, await base64(blob), 'base64');
@@ -31,4 +31,8 @@ export async function downloadInvoice(orderId: string, invoiceNo: string) {
   const files = await fs.ls(fs.dirs.CacheDir);
   await Promise.all(files.filter(f => f.startsWith('LuggEase-Sales-Invoice-') && f !== name).map(f => fs.unlink(`${fs.dirs.CacheDir}/${f}`).catch(() => {})));
   return Platform.OS === 'ios' ? 'Use Save to Files to save your invoice PDF.' : 'Invoice PDF opened. Use your viewer to save or share it.';
+}
+
+export function downloadInvoice(orderId: string, invoiceNo: string) {
+  return downloadDocument(`/orders/${encodeURIComponent(orderId)}/invoice.pdf`, invoiceNo);
 }

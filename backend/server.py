@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import copy
 import re
 import time
@@ -14,7 +15,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
 import bcrypt
 import httpx
@@ -29,6 +30,8 @@ from pymongo import ASCENDING, DESCENDING, IndexModel
 from pymongo.errors import DuplicateKeyError
 from firebase_identity import verify_identity
 import google_places
+from logistics import road_route, departure_at, delivery_window
+from instalments import payment_plan, create_instalment, confirm_instalment, reconcile_instalments
 from invoice_pdf import build_invoice_pdf
 from starlette.middleware.cors import CORSMiddleware
 
@@ -64,6 +67,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 INDEXES: dict[str, list[IndexModel]] = {
+    "payment_sessions": [IndexModel([("session_key", ASCENDING)], unique=True),IndexModel([("razorpay_order_id", ASCENDING)],unique=True,sparse=True)],
+    "transfer_agreements": [IndexModel([("agreement_id", ASCENDING)], unique=True)],
+    "pickup_signatures": [IndexModel([("order_id", ASCENDING)], unique=True)],
+    "tracking_points": [IndexModel([("order_id", ASCENDING),("received_at", ASCENDING)]), IndexModel([("recorded_at", ASCENDING)], expireAfterSeconds=2592000)],
+    "traffic_evidence": [IndexModel([("evidence_id", ASCENDING)], unique=True)],
     "users": [
         IndexModel([("email", ASCENDING)], name="email", unique=True),
         IndexModel([("user_id", ASCENDING)], name="user_id", unique=True),
@@ -240,18 +248,18 @@ class ItemQty(BaseModel):
 
 
 class QuoteRequest(BaseModel):
-    pickup_address: str = Field(min_length=3)
-    drop_address: str = Field(min_length=3)
+    pickup_address: str = Field(min_length=3,max_length=500)
+    drop_address: str = Field(min_length=3,max_length=500)
     pickup_state: str
     drop_state: str
     distance_km: float = Field(gt=0, le=3000)
-    items: List[ItemQty] = Field(min_length=1)
+    items: List[ItemQty] = Field(min_length=1,max_length=100)
     service_type: Literal["shift_only", "pack_and_shift"]
     service_category: str = "home_shifting"
     vehicle_key: Optional[str] = None
     helpers: Optional[int] = Field(default=None, ge=0, le=6)
     hours: Optional[float] = Field(default=None, ge=0, le=72)
-    extra_stops: List[str] = Field(default_factory=list, max_length=3)
+    extra_stops: List[Annotated[str, Field(min_length=3,max_length=500)]] = Field(default_factory=list, max_length=3)
     pickup_floor: int = Field(default=0, ge=0, le=50)
     drop_floor: int = Field(default=0, ge=0, le=50)
     lift_available: bool = True
@@ -260,6 +268,7 @@ class QuoteRequest(BaseModel):
     customer_gstin: Optional[str] = None
     move_date: Optional[str] = None
     time_slot: Optional[str] = None
+    agreement_id: Optional[str] = None
 
 
 def r2(x: float) -> float:
@@ -633,7 +642,8 @@ async def catalog():
     return {"items": ITEMS, "vehicles": VEHICLES, "states": INDIAN_STATES, "supplier": SUPPLIER,
             "gst_rules": GST_RULES, "commission_rate": COMMISSION_RATE * 100, "categories": SERVICE_CATEGORIES,
             "coupons": [{"code": k, "desc": v["desc"]} for k, v in COUPONS.items()], "time_slots": TIME_SLOTS,
-            "cancellation_fee": CANCELLATION_FEE, "stop_charge": STOP_CHARGE}
+            "cancellation_fee": CANCELLATION_FEE, "stop_charge": STOP_CHARGE,
+            "payment_configuration": payment_configuration()}
 
 
 _places_requests: dict[str, deque] = {}
@@ -680,38 +690,34 @@ async def place_details(place_id: str, response: Response,
 
 
 class DistanceBody(BaseModel):
-    pickup: str
-    drop: str
-
-
-async def geocode(hc: httpx.AsyncClient, q: str):
-    r = await hc.get("https://nominatim.openstreetmap.org/search",
-                     params={"q": q, "format": "json", "limit": 1, "countrycodes": "in"},
-                     headers={"User-Agent": "LuggEase/1.0 (support@luggease.in)"})
-    js = r.json() if r.status_code == 200 else []
-    return (float(js[0]["lat"]), float(js[0]["lon"])) if js else None
+    pickup: str = Field(min_length=3, max_length=500)
+    drop: str = Field(min_length=3, max_length=500)
+    extra_stops: List[Annotated[str, Field(min_length=3,max_length=500)]] = Field(default_factory=list, max_length=3)
+    move_date: Optional[str] = None
+    time_slot: Optional[str] = None
 
 
 @api.post("/geo/distance")
-async def distance(body: DistanceBody, user=Depends(current_user)):
-    try:
-        async with httpx.AsyncClient(timeout=12) as hc:
-            a = await geocode(hc, body.pickup)
-            await asyncio.sleep(1)
-            b = await geocode(hc, body.drop)
-    except Exception:
-        a = b = None
-    if not a or not b:
-        raise HTTPException(422, "Could not locate one of the addresses. Please enter distance manually.")
-    lat1, lon1, lat2, lon2 = map(math.radians, [a[0], a[1], b[0], b[1]])
-    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
-    km = 6371 * 2 * math.asin(math.sqrt(h)) * 1.3  # road-distance factor
-    return {"distance_km": round(max(km, 1), 1)}
+async def distance(body: DistanceBody, response: Response, user=Depends(current_user)):
+    response.headers["Cache-Control"] = "private, no-store"
+    limit_places(user)
+    return await road_route(body.pickup, body.drop, body.extra_stops, departure_at(body.move_date, body.time_slot))
+
+
+async def routed_quote(body: QuoteRequest):
+    departure = departure_at(body.move_date, body.time_slot)
+    route = await road_route(f"{body.pickup_address}, {body.pickup_state}, India",
+        f"{body.drop_address}, {body.drop_state}, India", body.extra_stops, departure)
+    quote = compute_quote(body.model_copy(update={"distance_km": route["distance_km"]}))
+    quote["route"] = route
+    quote["delivery_estimate"] = delivery_window(departure, route["duration_seconds"], quote["hours"])
+    return quote
 
 
 @api.post("/quote")
 async def quote(body: QuoteRequest, user=Depends(current_user)):
-    return compute_quote(body)
+    limit_places(user)
+    return await routed_quote(body)
 
 
 # ----------------------------------------------------------------------------
@@ -736,7 +742,8 @@ def order_out(o: dict) -> dict:
 
 @api.post("/orders")
 async def create_order(body: QuoteRequest, user=Depends(require_role("customer"))):
-    q = compute_quote(body)
+    agreement = await validate_booking_agreement(body, user)
+    q = agreement["quote"]
     n = now_utc()
     order = {
         "order_id": f"LE{n.strftime('%y%m%d')}{uuid.uuid4().hex[:6].upper()}",
@@ -747,8 +754,9 @@ async def create_order(body: QuoteRequest, user=Depends(require_role("customer")
         "pickup_floor": body.pickup_floor, "drop_floor": body.drop_floor, "lift_available": body.lift_available,
         "move_date": body.move_date, "time_slot": body.time_slot, "extra_stops": q["extra_stops"],
         "service_category": body.service_category, "pickup_otp": f"{secrets.randbelow(10000):04d}",
-        "rating": None, "quote": q, "status": "pending_payment", "partner_id": None,
-        "partner_name": None, "invoice_no": None, "payment": None,
+        "rating": None, "quote": q, "delivery_estimate": q.get("delivery_estimate"),
+        "agreement_id": agreement["agreement_id"], "requires_pickup_signatures": True, "status": "pending_payment", "partner_id": None,
+        "partner_name": None, "invoice_no": None, "payment": None, "payment_plan": payment_plan(q["grand_total"]), "payments": [],
         "timeline": [{"status": "pending_payment", "at": iso(n)}],
         "created_at": iso(n), "updated_at": iso(n),
     }
@@ -810,6 +818,10 @@ async def download_invoice(order_id: str, user=Depends(current_user)):
         raise HTTPException(404, "Order not found")
     if not order.get("invoice_no") or not order.get("invoice_date"):
         raise HTTPException(409, "Sales invoice is available after payment.")
+    signed = await db.pickup_signatures.find_one({"order_id": order_id})
+    if signed:
+        order["invoice_pickup_signature"] = bytes(signed["invoice_signature"])
+        order["invoice_pickup_signed_at"] = signed["captured_at"]
     data = await asyncio.to_thread(build_invoice_pdf, order, order.get("invoice_supplier") or SUPPLIER)
     filename = re.sub(r"[^A-Za-z0-9_-]", "-", str(order["invoice_no"]))[:80]
     return Response(data, media_type="application/pdf", headers={
@@ -822,8 +834,9 @@ async def cancel_order(order_id: str, user=Depends(require_role("customer", "adm
     o = await get_order_for(order_id, user)
     if o["status"] not in ("pending_payment", "paid", "assigned"):
         raise HTTPException(400, "Order can no longer be cancelled")
-    fee = CANCELLATION_FEE if o["status"] == "assigned" else 0
-    refund = r2(o["quote"]["grand_total"] - fee) if o["status"] != "pending_payment" else 0
+    paid_amount = o["payment_plan"]["paid_paise"] / 100 if o.get("payment_plan") else (o["quote"]["grand_total"] if o["status"] != "pending_payment" else 0)
+    fee = min(CANCELLATION_FEE, paid_amount) if o["status"] == "assigned" else 0
+    refund = r2(max(0,paid_amount - fee))
     refund_note = None
     if o["status"] != "pending_payment":
         refund_note = f"Refund of ₹{refund:,.2f} will be processed to the original payment method" + (
@@ -892,6 +905,10 @@ async def update_status(order_id: str, body: StatusBody, user=Depends(require_ro
         raise HTTPException(404, "Order not found")
     if o["status"] not in STATUS_FLOW or STATUS_FLOW.index(body.status) != STATUS_FLOW.index(o["status"]) + 1:
         raise HTTPException(400, "Invalid status change")
+    if body.status == "picked_up" and o.get("payment_plan") and o["payment_plan"]["paid_paise"] < o["payment_plan"]["total_paise"]:
+        raise HTTPException(409,"The remaining 50% pickup balance must be paid after loading and before departure.")
+    if body.status == "picked_up" and o.get("requires_pickup_signatures") and not o.get("pickup_signatures_completed_at"):
+        raise HTTPException(409, "Capture customer signatures on the invoice and transfer agreement after loading, before leaving pickup.")
     if body.status == "picked_up" and o.get("pickup_otp") and body.otp != o["pickup_otp"]:
         raise HTTPException(400, "Incorrect pickup OTP. Ask the customer for the 4-digit code.")
     n = iso(now_utc())
@@ -1085,10 +1102,17 @@ async def admin_stats(user=Depends(require_role("admin"))):
 # ----------------------------------------------------------------------------
 # Payments (Razorpay)
 # ----------------------------------------------------------------------------
+def payment_configuration():
+    key=os.environ.get("RAZORPAY_KEY_ID", "")
+    mode="test" if key.startswith("rzp_test_") else "live" if key.startswith("rzp_live_") else "unconfigured"
+    ready=bool(os.environ.get("RAZORPAY_KEY_SECRET")) and mode!="unconfigured" and not (APP_ENV=="production" and mode=="test")
+    return {"enabled":ready,"mode":mode,"booking_percent":50,"pickup_percent":50}
+
+
 def rzp_client() -> razorpay.Client:
     key_id, secret = os.environ.get("RAZORPAY_KEY_ID"), os.environ.get("RAZORPAY_KEY_SECRET")
-    if not key_id or not secret:
-        raise HTTPException(503, "Online payments are not configured yet")
+    if not key_id or not secret or not payment_configuration()["enabled"]:
+        raise HTTPException(503, "Online payments are unavailable. Merchant configuration is pending, or test keys are being used outside an isolated test environment.")
     return razorpay.Client(auth=(key_id, secret))
 
 
@@ -1099,13 +1123,17 @@ def public_base(request: Request) -> str:
 
 class PayBody(BaseModel):
     order_id: str
+    stage: Optional[Literal["advance", "balance"]] = None
 
 
 @api.post("/payments/create")
 async def create_payment(body: PayBody, request: Request, user=Depends(require_role("customer"))):
+    limit_places(user)
     o = await db.orders.find_one({"order_id": body.order_id, "customer_id": user["user_id"]}, {"_id": 0})
     if not o:
         raise HTTPException(404, "Order not found")
+    if o.get("payment_plan"):
+        return await create_instalment(sys.modules[__name__],o,user,request,body.stage)
     if o["status"] != "pending_payment":
         raise HTTPException(400, "Order is already paid or closed")
     rz = rzp_client()
@@ -1125,9 +1153,14 @@ async def create_payment(body: PayBody, request: Request, user=Depends(require_r
 
 
 async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer_id: Optional[str] = None) -> dict:
+    session = await db.payment_sessions.find_one({"razorpay_order_id":rzp_order_id},{"_id":0})
+    if session:
+        return await confirm_instalment(sys.modules[__name__],session,payment_id,signature,customer_id)
     o = await db.orders.find_one({"razorpay_order_id": rzp_order_id}, {"_id": 0})
     if not o or (customer_id and o["customer_id"] != customer_id):
         raise HTTPException(404, "Unknown payment order")
+    if o.get("payment_plan"):
+        raise HTTPException(409,"The instalment payment session was not found. Refresh the order.")
     if o["status"] != "pending_payment":
         return o
     secret = os.environ["RAZORPAY_KEY_SECRET"]
@@ -1148,6 +1181,15 @@ async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer
     return await db.orders.find_one({"order_id": o["order_id"]}, {"_id": 0})
 
 
+@api.post("/payments/reconcile")
+async def reconcile_payment(body: PayBody, user=Depends(require_role("customer"))):
+    limit_places(user)
+    order=await db.orders.find_one({"order_id":body.order_id,"customer_id":user["user_id"]},{"_id":0})
+    if not order: raise HTTPException(404,"Order not found")
+    if not order.get("payment_plan"): raise HTTPException(409,"Contact support to reconcile a legacy payment.")
+    return await reconcile_instalments(sys.modules[__name__],order)
+
+
 class VerifyBody(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
@@ -1156,12 +1198,16 @@ class VerifyBody(BaseModel):
 
 @api.post("/payments/verify")
 async def verify_payment(body: VerifyBody, user=Depends(require_role("customer"))):
+    limit_places(user)
     return await mark_paid(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature, user["user_id"])
 
 
 @api.get("/payments/page/{rzp_order_id}", response_class=HTMLResponse)
 async def checkout_page(rzp_order_id: str, request: Request):
-    o = await db.orders.find_one({"razorpay_order_id": rzp_order_id}, {"_id": 0})
+    session=await db.payment_sessions.find_one({"razorpay_order_id":rzp_order_id},{"_id":0})
+    o=await db.orders.find_one({"order_id":session["order_id"]} if session else {"razorpay_order_id":rzp_order_id},{"_id":0})
+    if o and session:
+        o["amount_paise"]=session["amount_paise"]
     if not o:
         raise HTTPException(404, "Unknown payment")
     key_id = os.environ.get("RAZORPAY_KEY_ID", "")
@@ -1196,7 +1242,18 @@ async def payment_callback(request: Request):
 <h3>{text}</h3><script>window.ReactNativeWebView&&window.ReactNativeWebView.postMessage("{msg}")</script></body></html>"""
 
 
+from logistics_workflow import install_workflow
+install_workflow(sys.modules[__name__])
 app.include_router(api)
+
+@app.middleware("http")
+async def private_api_responses(request,call_next):
+    response=await call_next(request)
+    if request.url.path.startswith('/api/'):
+        response.headers.setdefault('Cache-Control','private, no-store')
+        response.headers.setdefault('X-Content-Type-Options','nosniff')
+    return response
+
 app.add_middleware(CORSMiddleware, allow_credentials=False,
                    allow_origins=[origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",") if origin.strip()],
                    allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])

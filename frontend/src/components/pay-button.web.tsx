@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-export function PayButton({ orderId, amountLabel, onDone }: { orderId: string; amountLabel: string; onDone: () => void }) {
+export function PayButton({ orderId, amountLabel, onDone, stage, disabled=false }: { orderId: string; amountLabel: string; onDone: () => void; stage?:"advance"|"balance";disabled?:boolean }) {
   const [ready, setReady] = useState(typeof window !== "undefined" && !!window.Razorpay);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
@@ -25,9 +25,9 @@ export function PayButton({ orderId, amountLabel, onDone }: { orderId: string; a
   const start = async () => {
     setBusy(true);
     try {
-      const o = await api<any>("/payments/create", { body: { order_id: orderId } });
+      const o = await api<any>("/payments/create", { body: { order_id: orderId,stage } });
       const rzp = new window.Razorpay({
-        key: o.key_id, amount: o.amount, currency: "INR", name: "LuggEase", description: `Order ${o.order_id}`,
+        key: o.key_id, amount: o.amount, currency: "INR", name: "LuggEase", description: `${o.stage??"Order"} payment · ${o.order_id}`,
         order_id: o.razorpay_order_id, prefill: { name: o.name, email: o.email, contact: o.contact },
         theme: { color: "#CC5500" },
         handler: async (resp: any) => {
@@ -37,6 +37,7 @@ export function PayButton({ orderId, amountLabel, onDone }: { orderId: string; a
           } catch (e: any) {
             toast(e.message, "error");
           }
+          setBusy(false);
           onDone();
         },
         modal: { ondismiss: () => setBusy(false) },
@@ -49,5 +50,5 @@ export function PayButton({ orderId, amountLabel, onDone }: { orderId: string; a
     }
   };
 
-  return <Button testID="pay-now-button" title={`Pay ${amountLabel} with Razorpay`} icon="shield-lock-outline" disabled={!ready} loading={busy} onPress={start} />;
+  return <Button testID="pay-now-button" title={`${stage==="advance"?"Pay 50% booking advance":stage==="balance"?"Pay 50% pickup balance":"Pay invoice"} · ${amountLabel}`} icon="shield-lock-outline" disabled={!ready||disabled} loading={busy} onPress={start} />;
 }

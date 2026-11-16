@@ -1,14 +1,14 @@
 # Review and test execution report
 
-15 November 2026 • Lugg-Ease • Completed review, build and deployment verification
+Updated 16 November 2026 • Lugg-Ease • See latest release status below; dated earlier sections retain historical results.
 
 ## Automated results
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Backend pricing, identity contract and isolated API integration | 67 passed | test_reports/review-backend.xml |
+| Backend pricing, identity contract and isolated API integration | 89 passed | test_reports/review-backend.xml |
 | API integration against a dedicated real MongoDB instance | 10 passed: 9 API cases and 1 deterministic race regression | test_reports/review-real-mongo.xml |
-| Frontend validation, API transport, auth lifecycle and cross-account draft privacy | 32 passed | test_reports/review-frontend.json |
+| Frontend validation, API transport, auth lifecycle, draft privacy and agreement review | 33 passed | test_reports/review-frontend.json |
 | TypeScript | Passed | npm run typecheck |
 | ESLint | Passed | npm run lint |
 | Production browser bundle | Passed | Vite production build |
@@ -108,3 +108,25 @@ Live pricing verification passed on `luggease-api-00008-96l` after deployment, u
 The owner clarified that existing base fares INR 45/125/150 still cover the first 2 km. Updated only the three distance rates to INR 45/140/175 per additional kilometre. All 67 backend pricing, identity and isolated integration tests passed, including updated GST/discount/rounding expectations and 1/2/10 km boundary scenarios. No frontend rebuild is required because quotes are calculated by the shared API.
 
 Live rate verification passed on `luggease-api-00009-kwg` after promotion to 100% traffic; catalog base/per-km values exactly matched the owner clarification. Evidence: `test_reports/review-pricing-update.json`.
+
+
+## Latest logistics release — 16 November 2026
+
+Backend regression: **89 passed**, zero failures/errors (`test_reports/review-backend.xml`). Frontend: **33 passed** (`test_reports/review-frontend.json`). TypeScript, ESLint, Vite production build, Android Release and signed iOS Release builds passed.
+
+Deployed Cloud Run revision **luggease-api-00010-mzg**, built from **672cf513-5581-4b06-a083-db5997ab7493**, serving 100% traffic. Verified service IAM grants invocation only to the dedicated gateway service account; there is no anonymous invoker grant. Latest Firebase Hosting version: **2484ef8746e6d7e9**. Earlier Spark-only notes describe the initial deployment; billing and the private API were subsequently authorized and deployed.
+
+A real Google Routes request for public Coimbatore railway-station/airport addresses succeeded (10.819 km). This is a routing-service check, not evidence of an actual parcel journey. Google Maps browser key is referrer/API restricted; the server Places/Routes key remains secret.
+
+The latest signed app installed successfully on iPhone 13 Pro Max. The latest signed Android app also installed successfully on the connected Oppo. Latest workflow device interaction results remain separate from installation. Build success is not a claim that real pickup signatures, a trip or payments have been performed.
+
+Razorpay's existing LLP merchant account has Test Mode available and selected. Existing keys were preserved. The matching Test Mode credentials were supplied by the user in a local ignored file with mode 0600; authentication to the provider Test API passed. No real payment or synthetic paid production order was created. Both sandbox checkout instalments subsequently passed, as recorded below. Online production collection stays disabled.
+
+Remaining acceptance: supervised customer pickup signatures and a real foreground GPS trip. Tracking stops when the app backgrounds; congestion proof combines recorded coordinates and a Google traffic comparison and cannot independently establish the reason for delay. Aadhaar authentication is not required in this release.
+
+
+### Razorpay Test Mode checkout — passed
+
+Using the existing LLP merchant Test Mode account and an isolated in-memory database, completed a sample INR 47 invoice as two real provider **test** checkouts of INR 23.50 each. The owner clicked Success on each provider mock-bank popup. Application payment functions verified the provider HMAC receipt and fetched payment status; repeated receipt submissions were idempotent. The balance was rejected before the synthetic pickup/signature checkpoint, and accepted afterwards. Both payments were independently fetched from Razorpay and confirmed captured in INR. No real money moved and no production shipment/database was used.
+
+Evidence: `test_reports/razorpay-sandbox.json` and `screenshots/razorpay-two-instalments-passed.jpg`. The harness reuses `instalments.py` directly and does not import the production server or connect to MongoDB. It does not prove the full Firebase-authenticated mobile checkout, physical loading or real customer signatures. Production collection remains disabled until live merchant configuration is separately supplied.

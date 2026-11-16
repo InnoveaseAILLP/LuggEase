@@ -13,3 +13,7 @@ razorpay>=1.4,<3
 firebase-admin>=6.6,<8
 
 reportlab[shaping]==5.1.0
+
+pypdf==7.1.0
+
+tzdata==2026.6

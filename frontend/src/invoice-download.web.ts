@@ -1,6 +1,6 @@
 import {apiPdf} from '@/src/api';
-export async function downloadInvoice(orderId: string, invoiceNo: string) {
-  const blob = await apiPdf(`/orders/${encodeURIComponent(orderId)}/invoice.pdf`);
+export async function downloadDocument(path: string, invoiceNo: string) {
+  const blob = await apiPdf(path);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -8,4 +8,8 @@ export async function downloadInvoice(orderId: string, invoiceNo: string) {
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return 'Invoice PDF downloaded.';
+}
+
+export function downloadInvoice(orderId: string, invoiceNo: string) {
+  return downloadDocument(`/orders/${encodeURIComponent(orderId)}/invoice.pdf`, invoiceNo);
 }

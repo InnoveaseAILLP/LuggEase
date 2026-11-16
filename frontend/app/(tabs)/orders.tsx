@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {ShipmentTracking} from "@/src/components/shipment-tracking";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { OrderCard } from "@/src/components/order-card";
@@ -28,7 +29,7 @@ export default function Orders() {
   const { user } = useAuth();
   const [filter, setFilter] = useState("all");
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: ["orders"], queryFn: () => api<Order[]>("/orders") });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: ["orders"], queryFn: () => api<Order[]>("/orders"), refetchInterval:15000 });
 
   const rows = (data ?? []).filter((o) =>
     filter === "all" ? true : filter === "active" ? ["assigned", "picked_up", "in_transit"].includes(o.status) : o.status === filter,
@@ -53,7 +54,7 @@ export default function Orders() {
       <FlatList
         data={rows}
         keyExtractor={(o) => o.order_id}
-        renderItem={({ item }) => <OrderCard order={item} showPayout={user?.role === "partner"} />}
+        renderItem={({ item }) => <View style={{gap:space.sm}}><OrderCard order={item} showPayout={user?.role === "partner"}/>{["assigned","picked_up","in_transit"].includes(item.status)?<ShipmentTracking order={item} compact/>:null}</View>}
         contentContainerStyle={{ padding: space.lg, paddingBottom: bottomChrome + space.xl, gap: space.md }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
         ListEmptyComponent={!isLoading ? (

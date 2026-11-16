@@ -6,6 +6,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "@/src/api";
+import {AgreementReview} from "@/src/components/agreement-review";
 import { useAuth } from "@/src/auth";
 import { toPayload, useBooking } from "@/src/booking";
 import { InvoiceCard, useCatalog } from "@/src/components/invoice-card";
@@ -26,6 +27,7 @@ export default function BookReview() {
   const { data: cat } = useCatalog();
   const { draft, update } = useBooking();
   const [busy, setBusy] = useState(false);
+  const [agreementId, setAgreementId] = useState<string|null>(null);
   const [coupon, setCoupon] = useState(draft.coupon_code);
   const payload = toPayload(draft);
 
@@ -38,7 +40,7 @@ export default function BookReview() {
   const confirm = async () => {
     setBusy(true);
     try {
-      const o = await api<Order>("/orders", { body: payload });
+      const o = await api<Order>("/orders", { body: {...payload,agreement_id:agreementId} });
       qc.invalidateQueries({ queryKey: ["orders"] });
       router.dismissAll();
       router.push(`/order/${o.order_id}`);
@@ -145,6 +147,9 @@ export default function BookReview() {
             </View>
           </Card>
 
+          {q.delivery_estimate ? <Card style={{gap:space.sm}}><SectionTitle>Approximate delivery</SectionTitle><Text style={s.vehName}>{new Date(q.delivery_estimate.expected_delivery_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</Text><Text style={s.muted}>{q.delivery_estimate.note} Estimates are subject to road and vehicle restrictions.</Text></Card> : null}
+          <Card><SectionTitle>Payment schedule</SectionTitle><Text style={s.muted}>Pay 50% when booking. Pay the remaining 50% after loading on pickup day, before departure. Both customer signatures are required. {cat?.payment_configuration?.enabled?"":"Online collection is awaiting merchant setup."}</Text></Card>
+          <AgreementReview payload={payload} onReady={setAgreementId}/>
           <InvoiceCard quote={q} billTo={{ name: user?.name ?? "", email: user?.email ?? "", gstin: draft.customer_gstin }} />
 
           <Input testID="customer-gstin-input" label="Your GSTIN (optional, for business invoice)" value={draft.customer_gstin} onChangeText={(t) => update({ customer_gstin: t.toUpperCase() })} autoCapitalize="characters" maxLength={15} placeholder="29ABCDE1234F1Z5" />
@@ -160,7 +165,7 @@ export default function BookReview() {
 
       {q ? (
         <View style={[s.footer, { paddingBottom: insets.bottom + space.md }]}>
-          <Button testID="confirm-booking-button" title={`Confirm booking · ${inr(q.grand_total, 0)}`} loading={busy} disabled={isFetching} onPress={confirm} />
+          <Button testID="confirm-booking-button" title={agreementId?`Confirm booking · ${inr(q.grand_total, 0)}`:"Review agreement before booking"} loading={busy} disabled={isFetching||!agreementId} onPress={confirm} />
         </View>
       ) : null}
     </View>

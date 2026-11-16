@@ -1432,6 +1432,29 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-geolocation (3.4.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-keyboard-controller (1.22.7):
     - hermes-engine
     - RCTRequired
@@ -2393,6 +2416,7 @@ DEPENDENCIES:
   - React-mutationobservernativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)
   - react-native-blob-util (from `../node_modules/react-native-blob-util`)
   - react-native-config (from `../node_modules/react-native-config`)
+  - "react-native-geolocation (from `../node_modules/@react-native-community/geolocation`)"
   - react-native-keyboard-controller (from `../node_modules/react-native-keyboard-controller`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-vector-icons-material-design-icons (from `../node_modules/@react-native-vector-icons/material-design-icons`)"
@@ -2560,6 +2584,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-blob-util"
   react-native-config:
     :path: "../node_modules/react-native-config"
+  react-native-geolocation:
+    :path: "../node_modules/@react-native-community/geolocation"
   react-native-keyboard-controller:
     :path: "../node_modules/react-native-keyboard-controller"
   react-native-safe-area-context:
@@ -2724,6 +2750,7 @@ SPEC CHECKSUMS:
   React-mutationobservernativemodule: b85faf3c54644c0ef2c758cd8c4e6ce16fb1f8ae
   react-native-blob-util: c14f542c2965a8d33a8feac2bed2d29e11be4971
   react-native-config: b579534a137bbbc148d97c6e2dadc704238f053f
+  react-native-geolocation: 2c5f29e0098223d8fa2c18813f6acbf882563424
   react-native-keyboard-controller: 8da3439009d9bea47a38462af94227c2c228708e
   react-native-safe-area-context: 7b143af09becaf26ba247b9a82d355f91b77b9b0
   react-native-vector-icons-material-design-icons: 811f6c4447a60d8a66394644093dcffdc546772f
