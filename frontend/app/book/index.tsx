@@ -42,10 +42,10 @@ export default function BookLocations() {
     setCalc(true);
     try {
       const r = await api<{ distance_km: number }>("/geo/distance", {
-        body: { pickup: `${draft.pickup_address}, ${draft.pickup_state}`, drop: `${draft.drop_address}, ${draft.drop_state}` },
+        body: { pickup: `${draft.pickup_address}, ${draft.pickup_state}, India`, drop: `${draft.drop_address}, ${draft.drop_state}, India`, extra_stops:draft.extra_stops, move_date:draft.move_date||undefined,time_slot:draft.time_slot },
       });
       update({ distance_km: String(r.distance_km) });
-      toast(`Estimated ${r.distance_km} km by road`, "success");
+      toast(`Google Maps route: ${r.distance_km} km`, "success");
     } catch (e: any) {
       toast(e.message, "error");
     } finally {
@@ -111,7 +111,7 @@ export default function BookLocations() {
             </View>
             <Button testID="auto-distance-button" variant="secondary" compact icon="map-marker-distance" title="Auto" loading={calc} onPress={autoDistance} style={{ height: 50 }} />
           </View>
-          <Text style={s.hint}>Tap Auto to estimate road distance from the addresses, or type it in.</Text>
+          <Text style={s.hint}>Tap Auto for Google Maps road distance. The server verifies the route again when calculating your quote.</Text>
         </Card>
 
         <View>

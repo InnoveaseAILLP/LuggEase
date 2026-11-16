@@ -121,3 +121,26 @@ For 2-Wheeler, 3-Wheeler and Tata Ace, check 1 km and 2 km at base fares INR 45/
 ## Superseding additional-kilometre rates
 
 Owner-confirmed base fares remain INR 45/125/150 for 1 km and 2 km. At 10 km with zero helpers, revised transport subtotals must be INR 405/1245/1550, and totals including configured 5% GST and rounding INR 425/1307/1628. Verify the original 2-km allowance, applicable GST split, half-up rounding, coupons and commission on the revised amounts.
+
+
+## Logistics and instalment regression cases — 16 November 2026
+
+| ID | Scenario and expected result | Evidence |
+| --- | --- | --- |
+| LOG-01 | Check 21:00 boundary, late/early arrival and multi-day travel; reject past/invalid pickup slots. | test_logistics_workflow.py |
+| LOG-02 | Supply forged client kilometres; server Google road result controls the quote. | test_logistics_workflow.py |
+| LOG-03 | Reject booking before ownership review; reject changed goods, expired or reused agreements and unrelated customer access. | test_logistics_workflow.py |
+| LOG-04 | Restrict ETA revisions to assigned partner; require future time and explanation. | test_logistics_workflow.py |
+| LOG-05 | Restrict GPS to active assigned trip; validate coordinates, age, accuracy and privacy. | test_logistics_workflow.py |
+| LOG-06 | Require two valid handwritten PNGs, loading/presence acknowledgements and pickup OTP before departure. | test_logistics_workflow.py |
+| LOG-07 | Reject excess/duplicate congestion fees and insufficient evidence; require acceptance; preserve original invoice; support rejection/cash receipt. | test_logistics_workflow.py |
+| PAY-01 | Split even/odd paise exactly; collect advance then pickup balance once each. | test_instalments.py |
+| PAY-02 | Reject mismatched amount/currency/provider order/status, invalid signature and stale stage. | test_instalments.py |
+| PAY-03 | Disabled credentials block checkout; production rejects sandbox keys; partial cancellation refund uses received funds only. | test_instalments.py |
+| PAY-04 | Recover provider-confirmed receipts through reconciliation; late capture after cancellation does not revive shipment. | test_instalments.py |
+| UI-AG-01 | Require explicit ownership acceptance and invalidate accepted review after booking payload changes. | agreement-review.test.tsx |
+| MAN-LOG-01 | Real partner trip: explicitly share GPS, background/foreground the app, confirm stale state and customer map updates. | Pending real-trip acceptance |
+| MAN-PAY-01 | Isolated Razorpay Test Mode: complete both instalments, verify provider receipts and retry/reconciliation without production orders. | Passed in isolated provider sandbox; see razorpay-sandbox.json |
+| MAN-PICKUP-01 | Real customer reviews both documents and draws two signatures after loading; confirm departure guard and PDF images. | Pending supervised pickup acceptance |
+
+Automated workflow tests use isolated data and mocked external providers. They do not establish completion of real signatures, a real journey or provider sandbox checkout.

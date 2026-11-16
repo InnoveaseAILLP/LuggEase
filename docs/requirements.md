@@ -98,3 +98,24 @@ Owner-approved transport base fares include the first 2 km: 2-Wheeler (20 kg) IN
 ## Superseding distance-rate clarification — 15 November 2026
 
 The owner explicitly confirmed retaining the first-2-km base fares INR 45/125/150, and charging **each additional kilometre** at INR 45 for 2-Wheeler, INR 140 for 3-Wheeler, and INR 175 for Tata Ace. This supersedes the earlier INR 10/16/23 distance rates. Other vehicles, tax and ancillary services remain unchanged. Existing booked quotes are retained.
+
+
+## Approved logistics and payment requirements — 16 November 2026
+
+These requirements supersede the earlier Aadhaar and single-payment proposals.
+
+| ID | Required behavior |
+| --- | --- |
+| ROUTE-01 | Obtain driving distance and travel duration from Google Routes on the server for pickup, stops and drop. Recompute quotes from the road result; never trust client kilometres. Fail visibly if routing is unavailable. |
+| ETA-01 | Calculate arrival from pickup schedule in India time, Google travel duration, loading/handling allowance and driving breaks. Arrival after 21:00 rolls to the next day at 09:00; arrival before 09:00 moves to 09:00. Preserve dates for long journeys. |
+| ETA-02 | Assigned delivery partners may revise a future estimated arrival with a reason; retain revision history. |
+| AGREEMENT-01 | Generate a private Logistics Transfer Agreement listing goods, route, quote and ownership declaration before booking. Require customer review and ownership acceptance. Bind booking to the exact accepted, unexpired, single-use document. Aadhaar authentication is not required. |
+| PICKUP-01 | After loading, obtain separate handwritten customer signatures on the invoice and agreement, with customer-present/loading acknowledgements and pickup OTP. Retain private document snapshots. Block departure until signatures and the full invoice payment are recorded. |
+| PAY-01 | Collect 50% at booking and the remaining 50% on pickup day after loading and signature capture, before departure. Split in integer paise; any odd paise goes to the advance. Preserve the original invoice face value and show received/outstanding amounts. |
+| PAY-02 | Verify provider signature, order, amount, INR currency and payment status server-side. Credit each instalment once; reconcile provider-confirmed receipts. A capture after cancellation requires refund review and must not revive the order. |
+| PAY-03 | Disable online collection until appropriate merchant credentials are configured. Production must reject Razorpay Test Mode keys. Sandbox payments and synthetic shipments must remain outside production data. |
+| TRACK-01 | Show private live trip location in Orders and detail to the customer, assigned partner and administrators. The partner explicitly starts foreground sharing. Stop on background/unmount; mark data stale after 120 seconds. This release does not provide continuous background tracking. |
+| TRAFFIC-01 | Permit one congestion supplement per shipment, at most INR 200 including GST, with reason, recent GPS history and a frozen Google traffic-aware/static route comparison. Customer acceptance is required. Keep the original invoice unchanged and generate a supplementary invoice. A recorded path alone does not establish the cause of delay. |
+| TRAFFIC-02 | Customer may reject the supplement or acknowledge cash payment after acceptance. Reconcile such cash separately; it is not automatically settled through Razorpay. |
+
+The approved vehicle base fares still cover the first two kilometres: two-wheeler INR 45, three-wheeler INR 125 and Tata Ace INR 150. Additional kilometres are INR 45, INR 140 and INR 175 respectively.

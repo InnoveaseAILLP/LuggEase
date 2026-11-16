@@ -1,0 +1,43 @@
+{
+  "environment": "Razorpay Test Mode + isolated in-memory database",
+  "real_money": false,
+  "production_data_used": false,
+  "tested_at": "2026-11-16T09:32:30.957582+00:00",
+  "order_id": "QA-6cb8386cb5a7",
+  "payment_plan": {
+    "total_paise": 4700,
+    "advance_paise": 2350,
+    "balance_paise": 2350,
+    "advance_paid_paise": 2350,
+    "balance_paid_paise": 2350,
+    "paid_paise": 4700,
+    "balance_due": "After loading on pickup day, before departure"
+  },
+  "payments": [
+    {
+      "provider": "razorpay",
+      "payment_id": "pay_U0nVWoMi88nMnO",
+      "razorpay_order_id": "order_U0nUgdN9WDNDmt",
+      "stage": "advance",
+      "amount_paise": 2350,
+      "method": "netbanking",
+      "paid_at": "2026-11-16T09:29:33.197468+00:00",
+      "provider_verified_status": "captured"
+    },
+    {
+      "provider": "razorpay",
+      "payment_id": "pay_U0nYmqT2HjHYu0",
+      "razorpay_order_id": "order_U0nXeKFfCs4zq0",
+      "stage": "balance",
+      "amount_paise": 2350,
+      "method": "netbanking",
+      "paid_at": "2026-11-16T09:32:30.955527+00:00",
+      "provider_verified_status": "captured"
+    }
+  ],
+  "duplicate_receipt_idempotent": true,
+  "pickup_prerequisite": "Synthetic checkpoint, not a real signature",
+  "status": "assigned",
+  "provider_captured_total_paise": 4700,
+  "balance_blocked_before_pickup_checkpoint": true
+}

@@ -44,6 +44,7 @@ export function OrderCard({ order, showPayout, footer }: { order: Order; showPay
             <Text style={{ fontSize: 18, fontWeight: "800", color: colors.onSurface }}>{inr(q.grand_total, 0)}</Text>
           )}
         </View>
+        {order.payment_plan?<Text style={{fontSize:12,color:colors.muted,marginTop:space.sm}}>Received {inr(order.payment_plan.paid_paise/100)} · Balance {inr((order.payment_plan.total_paise-order.payment_plan.paid_paise)/100)} · 50% booking / 50% pickup</Text>:null}
         {footer ? <View style={{ marginTop: space.md }}>{footer}</View> : null}
       </Card>
     </Pressable>

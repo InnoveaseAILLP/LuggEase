@@ -23,6 +23,14 @@ async def app(monkeypatch):
         if token == 'unverified': raise HTTPException(403,'Verify your email')
         return {'uid':token, 'email':f'{token}@example.com', 'email_verified':True, 'name':'Test User'}
     monkeypatch.setattr(server,'verify_identity',verify)
+    # Existing booking/payment scenarios simulate an already reviewed ownership agreement.
+    # Dedicated workflow tests below restore the real agreement validator.
+    async def verified_test_agreement(body,user):
+        return {'agreement_id':'TEST-PREVERIFIED','quote':server.compute_quote(body)}
+    monkeypatch.setattr(server,'validate_booking_agreement',verified_test_agreement)
+    async def test_route(pickup,drop,stops,departure):
+        return {'distance_km':10,'duration_seconds':1200,'static_duration_seconds':1000,'source':'google_routes','departure_at':departure.isoformat()}
+    monkeypatch.setattr(server,'road_route',test_route)
     await server.ensure_indexes()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),base_url='http://test') as client:
         yield client,db
@@ -91,7 +99,7 @@ async def test_partner_approval_and_otp_hidden(app):
     client,db=app
     customer=await enroll(client,'alice');partner=await enroll(client,'driver','partner')
     order=(await client.post('/api/orders',headers=headers('alice'),json=quote_body())).json();oid=order['order_id']
-    await db.orders.update_one({'order_id':oid},{'$set':{'status':'paid'}})
+    await db.orders.update_one({'order_id':oid},{'$set':{'status':'paid','pickup_signatures_completed_at':'2026-11-16T00:00:00Z'},'$unset':{'payment_plan':''}})
     assert (await client.post(f'/api/orders/{oid}/accept',headers=headers('driver'))).status_code==403
     await db.users.update_one({'user_id':partner['user_id']},{'$set':{'partner_status':'approved','partner_profile':{'vehicle_type':'mini_truck'}}})
     listing=await client.get(f'/api/orders/{oid}',headers=headers('driver'))
@@ -205,7 +213,7 @@ async def test_payment_snapshots_invoice_supplier_once(app, monkeypatch):
     client, db = app
     owner = await enroll(client, 'alice')
     order = (await client.post('/api/orders', headers=headers('alice'), json=quote_body())).json()
-    await db.orders.update_one({'order_id':order['order_id']}, {'$set':{'razorpay_order_id':'test_rzp','amount_paise':10000}})
+    await db.orders.update_one({'order_id':order['order_id']}, {'$set':{'razorpay_order_id':'test_rzp','amount_paise':10000},'$unset':{'payment_plan':''}})
     monkeypatch.setenv('RAZORPAY_KEY_SECRET','isolated-test-secret')
     payment=SimpleNamespace(fetch=lambda _: {'order_id':'test_rzp','amount':10000,'currency':'INR','status':'captured','method':'test'})
     monkeypatch.setattr(server,'rzp_client',lambda: SimpleNamespace(payment=payment))

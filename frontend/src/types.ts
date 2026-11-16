@@ -32,6 +32,7 @@ export type User = {
 export type CatalogItem = { key: string; name: string; weight: number; size: "light" | "heavy"; icon: string; pack_hours: number; material: number };
 export type Vehicle = { key: string; name: string; max_kg: number; base: number; per_km: number; icon: string };
 export type Catalog = {
+  payment_configuration?: {enabled:boolean;mode?:"test"|"live"|"unconfigured";booking_percent:number;pickup_percent:number};
   items: CatalogItem[];
   vehicles: Vehicle[];
   states: string[];
@@ -44,7 +45,10 @@ export type Catalog = {
   stop_charge: number;
 };
 
+export type DeliveryEstimate = {expected_delivery_at:string;departure_at?:string;source:string;reason?:string;note?:string;updated_at?:string};
 export type Quote = {
+  delivery_estimate?: DeliveryEstimate;
+  route?: {distance_km:number;duration_seconds:number;static_duration_seconds:number;source:string};
   items: { key: string; name: string; qty: number; unit_kg: number; total_kg: number; icon: string }[];
   total_weight_kg: number;
   vehicle: Vehicle;
@@ -85,6 +89,13 @@ export type Quote = {
 export type OrderStatus = "pending_payment" | "paid" | "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled";
 
 export type Order = {
+  payment_plan?: {total_paise:number;advance_paise:number;balance_paise:number;advance_paid_paise:number;balance_paid_paise:number;paid_paise:number;balance_due:string};
+  payments?: {payment_id:string;razorpay_order_id:string;stage:string;amount_paise:number;paid_at:string}[];
+  delivery_estimate?: DeliveryEstimate;
+  agreement_id?: string;
+  requires_pickup_signatures?: boolean;
+  pickup_signatures_completed_at?: string;
+  traffic_surcharge?: {amount:number;reason:string;status:string;evidence_id:string;traffic_delay_seconds?:number;invoice_no?:string};
   order_id: string;
   customer_id: string;
   customer_name: string;
@@ -108,7 +119,7 @@ export type Order = {
   invoice_supplier?: Catalog["supplier"];
   invoice_no?: string | null;
   invoice_date?: string | null;
-  payment?: { payment_id: string; method?: string; paid_at: string } | null;
+  payment?: { stage?:"advance"|"balance"; payment_id: string; method?: string; paid_at: string } | null;
   refund_note?: string | null;
   refund_amount?: number;
   cancellation_fee?: number;

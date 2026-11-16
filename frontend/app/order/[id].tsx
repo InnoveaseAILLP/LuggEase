@@ -6,6 +6,7 @@ import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboa
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "@/src/api";
+import {ShipmentWorkflow} from "@/src/components/shipment-workflow";
 import { useAuth } from "@/src/auth";
 import { InvoiceCard, useCatalog } from "@/src/components/invoice-card";
 import { PayButton } from "@/src/components/pay-button";
@@ -37,7 +38,7 @@ export default function OrderDetail() {
   const [comment, setComment] = useState("");
   const [utr, setUtr] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
-  const { data: o, refetch, isRefetching, isLoading } = useQuery({ queryKey: ["order", id], queryFn: () => api<Order>(`/orders/${id}`) });
+  const { data: o, refetch, isRefetching, isLoading } = useQuery({ queryKey: ["order", id], queryFn: () => api<Order>(`/orders/${id}`), refetchInterval:15000 });
   const partners = useQuery({ queryKey: ["admin-partners", "approved"], queryFn: () => api<User[]>("/admin/partners?status=approved"), enabled: assignOpen });
 
   const refreshAll = () => {
@@ -78,7 +79,8 @@ export default function OrderDetail() {
   const reached = (st: OrderStatus) => o.timeline.find((t) => t.status === st);
 
   let footer: React.ReactNode = null;
-  if (isCustomer && o.status === "pending_payment") footer = <PayButton orderId={o.order_id} amountLabel={inr(q.grand_total, 0)} onDone={refreshAll} />;
+  if (isCustomer && o.status === "pending_payment") footer = <PayButton orderId={o.order_id} amountLabel={inr(o.payment_plan?o.payment_plan.advance_paise/100:q.grand_total)} stage={o.payment_plan?"advance":undefined} disabled={!cat?.payment_configuration?.enabled} onDone={refreshAll} />;
+  else if(isCustomer&&o.status==="assigned"&&o.pickup_signatures_completed_at&&o.payment_plan&&o.payment_plan.balance_paid_paise<o.payment_plan.balance_paise) footer=<PayButton orderId={o.order_id} amountLabel={inr(o.payment_plan.balance_paise/100)} stage="balance" disabled={!cat?.payment_configuration?.enabled} onDone={refreshAll}/>;
   else if (canAccept) footer = <Button testID="order-accept-button" title={`Accept job · earn ${inr(q.partner_payout, 0)}`} icon="check-bold" loading={busy === "accept"} onPress={() => act("accept", `/orders/${o.order_id}/accept`, undefined, "Job accepted")} />;
   else if (isMine && NEXT[o.status]) {
     const needOtp = o.status === "assigned";
@@ -126,6 +128,7 @@ export default function OrderDetail() {
           ) : o.refund_note ? <Text style={[s.muted, { marginTop: space.sm }]}>{o.refund_note}</Text> : null}
         </Card>
 
+        {(isCustomer||isMine||role==="admin")?<ShipmentWorkflow order={o} onChanged={()=>{refetch();qc.invalidateQueries({queryKey:["orders"]});}}/>:null}
         <Card style={{ gap: space.md }}>
           <View style={{ flexDirection: "row", gap: space.md }}>
             <Icon name="circle-slice-8" size={18} color={colors.success} />
@@ -236,7 +239,7 @@ export default function OrderDetail() {
         ) : null}
 
         <InvoiceCard quote={q} order={o} />
-        {o.payment ? <Text style={s.muted}>Paid via Razorpay ({o.payment.method ?? "online"}) · Ref {o.payment.payment_id}</Text> : null}
+        {o.payment ? <Text style={s.muted}>{o.payment.stage==="advance"?"Booking advance":o.payment.stage==="balance"?"Pickup balance":"Payment"} via Razorpay ({o.payment.method ?? "online"}) · Ref {o.payment.payment_id}</Text> : null}
 
         {(isCustomer || role === "admin") && ["pending_payment", "paid", "assigned"].includes(o.status) ? (
           <Button testID="cancel-order-button" variant="danger" compact title="Cancel booking" loading={busy === "cancel"} onPress={() => setCancelOpen(true)} />
@@ -258,8 +261,8 @@ export default function OrderDetail() {
               {o.status === "pending_payment"
                 ? "No payment has been made, so nothing will be charged."
                 : o.status === "assigned"
-                  ? `A partner is already assigned. A cancellation fee of ${inr(cat?.cancellation_fee ?? 100, 0)} applies and ${inr(q.grand_total - (cat?.cancellation_fee ?? 100))} will be refunded.`
-                  : `You'll get a full refund of ${inr(q.grand_total)} to your original payment method.`}
+                  ? `A partner is assigned. The cancellation fee is limited to the amount paid. Refund review: ${inr(Math.max(0,(o.payment_plan?o.payment_plan.paid_paise/100:q.grand_total)-(cat?.cancellation_fee??100)))} from payments received.`
+                  : `Refund review will use only the amount actually paid: ${inr(o.payment_plan?o.payment_plan.paid_paise/100:q.grand_total)}.`}
             </Text>
             <View style={{ flexDirection: "row", gap: space.sm }}>
               <Button testID="cancel-dismiss-button" variant="outline" compact title="Keep booking" style={{ flex: 1 }} onPress={() => setCancelOpen(false)} />

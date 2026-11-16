@@ -55,7 +55,7 @@ def build_invoice_pdf(order, supplier):
     story += [p(f"Place of supply: {q.get('place_of_supply', '')} ({g['supply_type']})", small),
               p(f"SAC {g['sac']} | {g['description']}", small), Spacer(1, 10)]
     rows = [[p('Description'), p('Amount', right)]]
-    rows += [[p(c['label']), p(money(c['amount']), right)] for c in q['charges']]
+    rows += [[p(c['label']), p(money(c['amount']), right)] for c in q['charges'] if c['amount']>=0]
     rows += [[p('Subtotal'), p(money(q.get('subtotal', q['taxable_value'])), right)]]
     if q.get('discount'):
         rows += [[p('Discount'), p('-' + money(q['discount']), right)]]
@@ -75,9 +75,17 @@ def build_invoice_pdf(order, supplier):
     story += [table, Spacer(1, 8), p(q.get('amount_in_words', ''))]
     if q.get('tip'):
         story += [p('Tip to partner (not taxable): ' + money(q['tip'])), p('Total paid including tip: ' + money(q['grand_total']))]
+    plan=order.get('payment_plan')
+    if plan:
+        story += [Spacer(1,8),p('Payment schedule: 50% at booking; remaining 50% after loading on pickup day, before departure.', small), p('Payments received: '+money(plan['paid_paise']/100)), p('Outstanding order balance: '+money(max(0,plan['total_paise']-plan['paid_paise'])/100))]
     story += [Spacer(1, 12), p('Tax payable under reverse charge: No.', small),
               p('Computer generated invoice. No signature required.', small),
               p('Need help? support@innovease-ai.in', small)]
+    story += [Spacer(1, 12), p('Customer acknowledgement after loading', small)]
+    if order.get('invoice_pickup_signature'):
+        story += [Image(BytesIO(order['invoice_pickup_signature']), width=220, height=80, kind='proportional'), p(order.get('invoice_pickup_signed_at', ''), small)]
+    else:
+        story += [p('Customer handwritten signature: ____________________    Date/time: ____________________', small)]
     def footer(canvas, document):
         canvas.saveState(); canvas.setFont('Invoice', 8); canvas.setFillColor(colors.HexColor('#666666'))
         canvas.drawString(36, 24, 'LuggEase | Sales invoice'); canvas.drawRightString(559, 24, f'Page {document.page}'); canvas.restoreState()

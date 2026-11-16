@@ -47,7 +47,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to the Lugg-Ease development server on your local network.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>With your permission, LuggEase shares your location with the customer only while you keep an active delivery tracking screen open.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

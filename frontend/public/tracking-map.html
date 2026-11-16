@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LuggEase shipment map</title><style>html,body,#map{height:100%;margin:0;font:14px system-ui}#status{padding:12px;color:#555}</style></head><body><div id="map"><p id="status">Waiting for shipment location reports…</p></div><script>
+let latest=[],map,line,marker;
+window.setShipmentPoints=function(points){
+ latest=(Array.isArray(points)?points:[]).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180).slice(-500);
+ if(!window.google?.maps||!latest.length)return;
+ const path=latest.map(p=>({lat:p.latitude,lng:p.longitude})),last=path[path.length-1];
+ if(!map){map=new google.maps.Map(document.getElementById('map'),{center:last,zoom:14,streetViewControl:false,fullscreenControl:true});line=new google.maps.Polyline({map,strokeColor:'#C85500',strokeWeight:4});marker=new google.maps.Marker({map,title:'Last device-reported delivery location'});}
+ line.setPath(path);marker.setPosition(last);map.panTo(last);
+};
+window.addEventListener('message',e=>{if(e.source===parent&&['https://luggease.innovease-ai.in','https://luggease-innovease.web.app'].includes(e.origin)&&e.data?.type==='shipment-points')window.setShipmentPoints(e.data.points)});
+window.initShipmentMap=()=>window.setShipmentPoints(latest);
+fetch('/google-maps-config.json').then(r=>r.json()).then(c=>{if(!c.apiKey)throw Error();const s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?loading=async&callback=initShipmentMap&key='+encodeURIComponent(c.apiKey);s.onerror=()=>{document.getElementById('status').textContent='Map unavailable. Location coordinates remain visible in the app.'};document.head.appendChild(s)}).catch(()=>{document.getElementById('status').textContent='Shipment map is awaiting Google Maps configuration.'});
+</script></body></html>
