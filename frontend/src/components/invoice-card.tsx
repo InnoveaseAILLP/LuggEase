@@ -67,7 +67,7 @@ export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Or
       </View>
 
       <View style={{ height: 1, backgroundColor: colors.divider, marginVertical: space.md }} />
-      {quote.charges.map((c, i) => <Row key={c.label} testID={`invoice-charge-${i}`} label={c.label} value={inr(c.amount)} />)}
+      {quote.charges.map((c, i) => <Row key={`${c.label}-${i}`} testID={`invoice-charge-${i}`} label={c.label} value={inr(c.amount)} />)}
       <View style={{ height: 1, backgroundColor: colors.divider, marginVertical: space.sm }} />
       <Row label="Taxable value" value={inr(quote.taxable_value)} testID="invoice-taxable-value" />
       {g.igst_rate > 0 ? (

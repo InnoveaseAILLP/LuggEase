@@ -2,7 +2,9 @@
 import uuid
 import pytest
 import requests
-from test_luggease_api import API, mdb, h, quote_body, ADMIN
+from test_luggease_api import API, mdb, h, quote_body, ADMIN, live_server_available
+
+pytestmark = pytest.mark.skipif(not live_server_available, reason="Live preview server is not running")
 
 S = {"orders": [], "users": []}
 
