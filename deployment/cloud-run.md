@@ -38,7 +38,7 @@ Do not configure clients with the private backend URL. Gateway `luggease` uses `
 
 ## Address suggestions and invoice PDFs
 
-Final API image build: `4096bed5-17ef-44af-a5bb-c79a47d98144`; revision `luggease-api-00007-zzm`. Authenticated `/api/places/autocomplete` and `/api/places/details/{place_id}` proxy Google Places API (New). `GOOGLE_MAPS_API_KEY` is injected from `luggease-google-places-key:1`, restricted to `places.googleapis.com`; only the runtime receives secret access. Browser/native clients use their existing Firebase ID token, never this Google key. Each field uses its own autocomplete session; details terminate the selected session. No Places suggestions are stored. Per-user limit: 60 upstream requests/minute per Cloud Run instance (currently max one instance). This limiter is not a billing budget.
+Final API image build: `4096bed5-17ef-44af-a5bb-c79a47d98144`; revision `luggease-api-00007-zzm`. Authenticated `/api/places/autocomplete` and `/api/places/details/{place_id}` proxy Google Places API (New). `GOOGLE_MAPS_API_KEY` is injected from `luggease-google-places-key:1`, restricted to `places.googleapis.com`; only the runtime receives secret access. Browser/native clients use their existing Firebase ID token, never this Google key. Each field uses its own autocomplete session; details terminate the selected session. No Places suggestions are stored. Per-user limit: 60 upstream requests per rolling minute across all API workers, enforced atomically in MongoDB. This limiter is not a billing budget.
 
 The gateway wildcard already covers `/api/orders/{order_id}/invoice.pdf`. The API checks customer ownership or administrator role and requires an issued invoice number/date. PDF responses use `private, no-store`; no public download URL is created. Supplier metadata is snapshotted on payment confirmation. Existing invoices without snapshots fall back to current supplier configuration. Newly generated PDFs include only selected invoice fields, never pickup OTPs or partner settlement data.
 
@@ -49,3 +49,13 @@ Implementation references: [Google Places autocomplete](https://developers.googl
 Latest pricing deployment: image build `ed407853-a422-41ea-b64c-51686368f46f`, revision `luggease-api-00008-96l`, 100% traffic. Live catalog verification confirmed the owner-approved base/per-km rates 45/10, 125/16 and 150/23. No IAM, secret, network or existing-order changes were made.
 
 Superseding owner-confirmed pricing deployment: build `f74ed8d3-ff6a-48eb-a1d0-1f0dd2b0815a`, revision `luggease-api-00009-kwg`, 100% traffic. Live verified base/per-additional-km: 45/45 (two-wheeler), 125/140 (three-wheeler), 150/175 (Tata Ace), first 2 km included. Existing runtime configuration and invocation policy were preserved.
+
+## Gateway configuration generation
+
+Generate the gateway specification from its environment-neutral template before creating a new API config:
+
+```sh
+python3 deployment/render_api_gateway.py --project-id luggease-innovease --backend-url https://luggease-api-366550426105.us-central1.run.app --output deployment/api-gateway.yaml
+```
+
+The renderer validates the project identifier and HTTPS Cloud Run origin. Firebase issuer/audience and backend audience remain environment-specific; review the generated diff before deployment. Rendering the current settings produces the existing deployed specification without changing gateway permissions.

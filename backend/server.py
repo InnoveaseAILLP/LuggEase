@@ -2,8 +2,6 @@ import asyncio
 import sys
 import copy
 import re
-import time
-from collections import deque
 import hashlib
 import hmac
 import secrets
@@ -25,11 +23,12 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from pymongo import ASCENDING, DESCENDING, IndexModel
 from pymongo.errors import DuplicateKeyError
 from firebase_identity import verify_identity
 import google_places
+from rate_limit import enforce_rate_limit
 from logistics import road_route, departure_at, delivery_window
 from instalments import payment_plan, create_instalment, confirm_instalment, reconcile_instalments
 from invoice_pdf import build_invoice_pdf
@@ -67,6 +66,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 INDEXES: dict[str, list[IndexModel]] = {
+    "request_limits": [IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0)],
     "payment_sessions": [IndexModel([("session_key", ASCENDING)], unique=True),IndexModel([("razorpay_order_id", ASCENDING)],unique=True,sparse=True)],
     "transfer_agreements": [IndexModel([("agreement_id", ASCENDING)], unique=True)],
     "delivery_signatures": [IndexModel([("order_id", ASCENDING)], unique=True)],
@@ -647,25 +647,8 @@ async def catalog():
             "payment_configuration": payment_configuration()}
 
 
-_places_requests: dict[str, deque] = {}
-
-
-def limit_places(user):
-    now = time.monotonic()
-    uid = user["user_id"]
-    # Bound memory as well as upstream requests. Prune expired windows proactively.
-    if len(_places_requests) >= 1000:
-        for key in list(_places_requests):
-            if not _places_requests[key] or _places_requests[key][-1] < now - 60:
-                del _places_requests[key]
-        if uid not in _places_requests and len(_places_requests) >= 10000:
-            raise HTTPException(429, "Address search is busy. Please try again shortly.")
-    times = _places_requests.setdefault(uid, deque())
-    while times and times[0] < now - 60:
-        times.popleft()
-    if len(times) >= 60:
-        raise HTTPException(429, "Too many address searches. Please wait a minute.")
-    times.append(now)
+async def limit_places(user):
+    await enforce_rate_limit(db.request_limits,user['user_id'],now_utc())
 
 
 @api.get("/places/autocomplete")
@@ -673,7 +656,7 @@ async def places_autocomplete(response: Response, input: str = Query(min_length=
                               session_token: str = Query(pattern=r"^[A-Za-z0-9_-]{16,36}$"),
                               user=Depends(current_user)):
     response.headers["Cache-Control"] = "private, no-store"
-    limit_places(user)
+    await limit_places(user)
     if len(input.strip()) < 3:
         raise HTTPException(422, "Enter at least three characters")
     return await google_places.autocomplete(input, session_token)
@@ -686,7 +669,7 @@ async def place_details(place_id: str, response: Response,
     if not 1 <= len(place_id) <= 256 or not all(c.isalnum() or c in "_-" for c in place_id):
         raise HTTPException(422, "Invalid place identifier")
     response.headers["Cache-Control"] = "private, no-store"
-    limit_places(user)
+    await limit_places(user)
     return await google_places.details(place_id, session_token)
 
 
@@ -701,7 +684,7 @@ class DistanceBody(BaseModel):
 @api.post("/geo/distance")
 async def distance(body: DistanceBody, response: Response, user=Depends(current_user)):
     response.headers["Cache-Control"] = "private, no-store"
-    limit_places(user)
+    await limit_places(user)
     return await road_route(body.pickup, body.drop, body.extra_stops, departure_at(body.move_date, body.time_slot))
 
 
@@ -717,7 +700,7 @@ async def routed_quote(body: QuoteRequest):
 
 @api.post("/quote")
 async def quote(body: QuoteRequest, user=Depends(current_user)):
-    limit_places(user)
+    await limit_places(user)
     return await routed_quote(body)
 
 
@@ -1051,6 +1034,11 @@ async def admin_assign(order_id: str, body: AssignBody, user=Depends(require_rol
 class SettleBody(BaseModel):
     utr: str = Field(min_length=6, max_length=30, description="Bank transfer reference (UTR / NEFT / IMPS)")
 
+    @field_validator("utr", mode="before")
+    @classmethod
+    def normalize_utr(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
+
 
 @api.post("/admin/orders/{order_id}/settle")
 async def settle_order(order_id: str, body: SettleBody, user=Depends(require_role("admin"))):
@@ -1067,7 +1055,11 @@ async def settle_order(order_id: str, body: SettleBody, user=Depends(require_rol
         raise HTTPException(400, "Partner has no bank account or UPI ID on file")
     snap.update({"status": "settled", "utr": body.utr.strip().upper(), "settled_at": iso(now_utc()),
                  "amount": o["quote"]["partner_payout"]})
-    await db.orders.update_one({"order_id": order_id}, {"$set": {"settlement": snap}})
+    result = await db.orders.update_one(
+        {"order_id": order_id, "status": "delivered", "settlement.status": {"$ne": "settled"}},
+        {"$set": {"settlement": snap}})
+    if result.modified_count != 1:
+        raise HTTPException(409, "Already settled or order changed; please refresh")
     return await db.orders.find_one({"order_id": order_id}, {"_id": 0})
 
 
@@ -1137,7 +1129,7 @@ class PayBody(BaseModel):
 
 @api.post("/payments/create")
 async def create_payment(body: PayBody, request: Request, user=Depends(require_role("customer"))):
-    limit_places(user)
+    await limit_places(user)
     o = await db.orders.find_one({"order_id": body.order_id, "customer_id": user["user_id"]}, {"_id": 0})
     if not o:
         raise HTTPException(404, "Order not found")
@@ -1192,7 +1184,7 @@ async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer
 
 @api.post("/payments/reconcile")
 async def reconcile_payment(body: PayBody, user=Depends(require_role("customer"))):
-    limit_places(user)
+    await limit_places(user)
     order=await db.orders.find_one({"order_id":body.order_id,"customer_id":user["user_id"]},{"_id":0})
     if not order: raise HTTPException(404,"Order not found")
     if not order.get("payment_plan"): raise HTTPException(409,"Contact support to reconcile a legacy payment.")
@@ -1207,7 +1199,7 @@ class VerifyBody(BaseModel):
 
 @api.post("/payments/verify")
 async def verify_payment(body: VerifyBody, user=Depends(require_role("customer"))):
-    limit_places(user)
+    await limit_places(user)
     return await mark_paid(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature, user["user_id"])
 
 

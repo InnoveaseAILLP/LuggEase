@@ -106,7 +106,7 @@ def install_workflow(ctx):
 
     @api.post('/agreements/prepare')
     async def prepare(body: ctx.QuoteRequest, user=Depends(ctx.require_role('customer'))):
-        ctx.limit_places(user)
+        await ctx.limit_places(user)
         q=await ctx.routed_quote(body)
         n=ctx.now_utc()
         a={'agreement_id':'LTA-'+uuid.uuid4().hex[:16].upper(),'version':2,'supplier':dict(ctx.SUPPLIER),'customer_id':user['user_id'],
@@ -207,7 +207,7 @@ def install_workflow(ctx):
         o=await strict_order(order_id,user,True)
         if o['status']!='assigned' or o.get('pickup_signatures_completed_at'): raise HTTPException(409,'Pickup signatures are already captured or pickup is closed.')
         if not body.goods_loaded_and_checked or not body.customer_present: raise HTTPException(422,'The customer must check the loaded goods and be present to sign.')
-        ctx.limit_places(user)
+        await ctx.limit_places(user)
         if not hmac.compare_digest(body.pickup_otp,o.get('pickup_otp','')): raise HTTPException(400,'Incorrect pickup OTP.')
         a=await ctx.db.transfer_agreements.find_one({'agreement_id':o.get('agreement_id'),'customer_id':o['customer_id']})
         if not a or a['status']!='reviewed': raise HTTPException(409,'The accepted transfer agreement is missing.')

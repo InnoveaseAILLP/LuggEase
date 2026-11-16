@@ -1,0 +1,55 @@
+{
+  "assignment": "partner",
+  "admin_approval_verified": true,
+  "settlement_metadata_verified": true,
+  "environment": "isolated simulation - no production records",
+  "test_users": [
+    "simulation-customer",
+    "simulation-partner"
+  ],
+  "order_id": "LE26111682E41B",
+  "statuses": [
+    "pending_payment",
+    "paid",
+    "assigned",
+    "picked_up",
+    "in_transit",
+    "delivered"
+  ],
+  "finding_partner_verified": true,
+  "partner_jobs_verified": true,
+  "pickup_signatures_verified": true,
+  "invoice_paid_in_full": true,
+  "gps_source": "synthetic test coordinates, not a real journey",
+  "gps_points": [
+    {
+      "latitude": 11.0015,
+      "longitude": 76.9668,
+      "accuracy": 15,
+      "captured_at": "2026-11-16T17:16:32.793184+00:00"
+    },
+    {
+      "latitude": 11.016,
+      "longitude": 77.005,
+      "accuracy": 15,
+      "captured_at": "2026-11-16T17:17:02.793184+00:00"
+    },
+    {
+      "latitude": 11.0268,
+      "longitude": 77.0435,
+      "accuracy": 15,
+      "captured_at": "2026-11-16T17:17:32.793184+00:00"
+    }
+  ],
+  "live_map_only_in_transit": true,
+  "destination_confirmation": "synthetic partner/customer declaration, not independently verified arrival",
+  "delivery_signature_verified": true,
+  "final_invoice_signature_verified": true,
+  "feedback": {
+    "stars": 5,
+    "comment": "TEST SIMULATION - five stars for pickup, careful handling, progress updates, tracking and delivery.",
+    "at": "2026-11-16T17:17:32.793184+00:00"
+  },
+  "duplicate_feedback_prevented": true,
+  "real_money": false
+}
