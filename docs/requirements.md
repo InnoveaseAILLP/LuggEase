@@ -119,3 +119,17 @@ These requirements supersede the earlier Aadhaar and single-payment proposals.
 | TRAFFIC-02 | Customer may reject the supplement or acknowledge cash payment after acceptance. Reconcile such cash separately; it is not automatically settled through Razorpay. |
 
 The approved vehicle base fares still cover the first two kilometres: two-wheeler INR 45, three-wheeler INR 125 and Tata Ace INR 150. Additional kilometres are INR 45, INR 140 and INR 175 respectively.
+
+
+## Agreement branding and live-map status gate — 16 November 2026
+
+New transfer agreements use document version 2 with the LuggEase icon, full LLP legal name, registered address, GSTIN/PAN, customer/consignor details, route, itemized goods, quotation, readable India-time ETA, two-stage payment schedule and handwritten pickup acknowledgement. Existing accepted document bytes and hashes remain immutable. Agreements download with a Transfer-Agreement filename rather than Sales-Invoice.
+
+Live-map display, location reads and partner location submissions require the exact status `in_transit`. Assigned, picked-up, delivered and cancelled orders do not expose the live map. Sharing stops on a status change or app background, including permission requests that complete after the trip has ended. ETA information can still appear before transit. Frozen supplementary traffic evidence remains a separate historical record.
+
+
+## Delivery completion and customer experience — 16 November 2026
+
+Assigned partners can open Google Maps navigation to pickup; picked-up/in-transit jobs navigate to the destination with booked stops. Navigation is external and does not silently enable background parcel tracking. Customer and partner confirm arrival and unloaded goods before the recipient personally signs the final invoice. For bookings requiring pickup signatures, completion also requires delivery acknowledgement. Private invoice exports include both acknowledgements. Arrival is declared, not an independently verified geofence event.
+
+Only the owning customer may submit one review after Delivered, with 1–5 stars and up to 300 characters covering the entire delivery experience. Concurrent duplicate submissions must be rejected before incrementing partner rating statistics.

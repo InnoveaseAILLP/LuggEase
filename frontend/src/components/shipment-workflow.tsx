@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Switch,Text,View} from 'react-native';
+import {Linking,Switch,Text,View} from 'react-native';
 import {useQuery} from '@tanstack/react-query';
 import {api} from '@/src/api';
 import {useAuth} from '@/src/auth';
@@ -10,6 +10,7 @@ import {useTheme} from '@/src/theme';
 import {ShipmentTracking, type TrackingPoint} from './shipment-tracking';
 import {ShipmentMap} from './shipment-map';
 import {SignaturePad} from './signature-pad';
+import {deliveryNavigationURL} from '@/src/delivery-navigation';
 import type {Order} from '@/src/types';
 export function ShipmentWorkflow({order:o,onChanged}:{order:Order;onChanged:()=>void}){
  const {data:catalog}=useCatalog();
@@ -17,6 +18,7 @@ export function ShipmentWorkflow({order:o,onChanged}:{order:Order;onChanged:()=>
  const partner=user?.role==='partner'&&o.partner_id===user.user_id,customer=o.customer_id===user?.user_id;
  const [date,setDate]=useState(''),[time,setTime]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false);
  const [signing,setSigning]=useState(false),[invoiceSig,setInvoiceSig]=useState(''),[agreementSig,setAgreementSig]=useState(''),[name,setName]=useState(o.customer_name||''),[otp,setOtp]=useState(''),[loaded,setLoaded]=useState(false),[present,setPresent]=useState(false);
+ const [deliverySig,setDeliverySig]=useState(''),[recipient,setRecipient]=useState(o.customer_name||''),[arrived,setArrived]=useState(false),[received,setReceived]=useState(false),[recipientPresent,setRecipientPresent]=useState(false);
  const [chargeReason,setChargeReason]=useState(''),[amount,setAmount]=useState('200'),[evidence,setEvidence]=useState(false),[cash,setCash]=useState(false);
  const proof=useQuery({queryKey:['traffic-evidence',o.order_id],queryFn:()=>api<{points:TrackingPoint[]}>(`/orders/${o.order_id}/traffic-evidence`),enabled:evidence});
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();onChanged();}catch(e:any){toast(e.message,'error');}finally{setBusy(false);}};
@@ -32,6 +34,24 @@ export function ShipmentWorkflow({order:o,onChanged}:{order:Order;onChanged:()=>
    {!catalog?.payment_configuration?.enabled?<Text style={{color:colors.muted}}>Online payment is temporarily unavailable. Please contact support.</Text>:null}
   </Card>:null}
   <ShipmentTracking order={o}/>
+  {partner&&['assigned','picked_up','in_transit'].includes(o.status)?<Card style={{gap:space.sm}}>
+   <SectionTitle>Delivery navigation</SectionTitle>
+   <Button title={o.status==='assigned'?'Navigate to pickup in Google Maps':'Navigate to destination in Google Maps'} onPress={()=>run(async()=>{await Linking.openURL(deliveryNavigationURL(o));})}/>
+   <Text style={{color:colors.muted}}>Google Maps opens separately. Returning to LuggEase and restarting location sharing is required for live parcel updates.</Text>
+  </Card>:null}
+  {partner&&o.status==='in_transit'&&!o.delivery_signature_completed_at?<Card style={{gap:space.sm}}>
+   <SectionTitle>Destination and final invoice signature</SectionTitle>
+   <Text style={{color:colors.muted}}>At the destination, unload the goods and let the customer check and sign the final invoice before marking Delivered.</Text>
+   <Button variant="outline" title="Review final invoice PDF" onPress={()=>doc(`/orders/${o.order_id}/pickup-invoice.pdf`,o.invoice_no||o.order_id)}/>
+   <Input label="Recipient name" value={recipient} onChangeText={setRecipient} maxLength={150}/>
+   <Text>Arrived at the destination</Text><Switch accessibilityLabel="Arrived at destination" value={arrived} onValueChange={setArrived}/>
+   <Text>Goods unloaded, received and checked</Text><Switch accessibilityLabel="Goods received and checked" value={received} onValueChange={setReceived}/>
+   <Text>Customer present and signing personally</Text><Switch accessibilityLabel="Delivery customer present" value={recipientPresent} onValueChange={setRecipientPresent}/>
+   <SignaturePad onChange={setDeliverySig}/>
+   <Button title="Save final invoice signature" loading={busy} disabled={!deliverySig||!arrived||!received||!recipientPresent||recipient.trim().length<2} onPress={()=>run(async()=>{await api(`/orders/${o.order_id}/delivery-signature`,{body:{signature:deliverySig,recipient_name:recipient,arrived_at_destination:arrived,goods_received_and_checked:received,customer_present:recipientPresent}});toast('Delivery acknowledgement saved. You can now mark Delivered.','success');})}/>
+  </Card>:null}
+  {o.delivery_signature_completed_at?<Card><SectionTitle>Delivery acknowledgement recorded</SectionTitle><Text style={{color:colors.onSurface}}>{o.delivery_recipient_name} · {new Date(o.delivery_signature_completed_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</Text><Button variant="outline" title="Download signed final invoice" onPress={()=>doc(`/orders/${o.order_id}/pickup-invoice.pdf`,o.invoice_no||o.order_id)}/></Card>:null}
+
   {partner&&['assigned','picked_up','in_transit'].includes(o.status)?<Card style={{gap:space.sm}}>
    <SectionTitle>Revise approximate delivery</SectionTitle>
    <Input label="Delivery date (DD-MM-YYYY)" value={date} onChangeText={setDate} placeholder="17-11-2026"/>

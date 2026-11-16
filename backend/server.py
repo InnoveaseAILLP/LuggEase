@@ -54,7 +54,7 @@ SUPPLIER = {
     "address": os.environ["SUPPLIER_ADDRESS"],
     "pan": os.environ["SUPPLIER_PAN"],
     "bank": {
-        "account_name": os.environ["SUPPLIER_NAME"], "bank_name": os.environ["SUPPLIER_BANK_NAME"],
+        "account_name": os.environ.get("SUPPLIER_BANK_ACCOUNT_NAME") or os.environ["SUPPLIER_NAME"], "bank_name": os.environ["SUPPLIER_BANK_NAME"],
         "account_number": os.environ["SUPPLIER_BANK_ACCOUNT"], "ifsc": os.environ["SUPPLIER_BANK_IFSC"],
         "branch": os.environ["SUPPLIER_BANK_BRANCH"],
     },
@@ -69,6 +69,7 @@ logger = logging.getLogger(__name__)
 INDEXES: dict[str, list[IndexModel]] = {
     "payment_sessions": [IndexModel([("session_key", ASCENDING)], unique=True),IndexModel([("razorpay_order_id", ASCENDING)],unique=True,sparse=True)],
     "transfer_agreements": [IndexModel([("agreement_id", ASCENDING)], unique=True)],
+    "delivery_signatures": [IndexModel([("order_id", ASCENDING)], unique=True)],
     "pickup_signatures": [IndexModel([("order_id", ASCENDING)], unique=True)],
     "tracking_points": [IndexModel([("order_id", ASCENDING),("received_at", ASCENDING)]), IndexModel([("recorded_at", ASCENDING)], expireAfterSeconds=2592000)],
     "traffic_evidence": [IndexModel([("evidence_id", ASCENDING)], unique=True)],
@@ -755,7 +756,7 @@ async def create_order(body: QuoteRequest, user=Depends(require_role("customer")
         "move_date": body.move_date, "time_slot": body.time_slot, "extra_stops": q["extra_stops"],
         "service_category": body.service_category, "pickup_otp": f"{secrets.randbelow(10000):04d}",
         "rating": None, "quote": q, "delivery_estimate": q.get("delivery_estimate"),
-        "agreement_id": agreement["agreement_id"], "requires_pickup_signatures": True, "status": "pending_payment", "partner_id": None,
+        "agreement_id": agreement["agreement_id"], "requires_pickup_signatures": True, "requires_delivery_signature": True, "status": "pending_payment", "partner_id": None,
         "partner_name": None, "invoice_no": None, "payment": None, "payment_plan": payment_plan(q["grand_total"]), "payments": [],
         "timeline": [{"status": "pending_payment", "at": iso(n)}],
         "created_at": iso(n), "updated_at": iso(n),
@@ -822,6 +823,11 @@ async def download_invoice(order_id: str, user=Depends(current_user)):
     if signed:
         order["invoice_pickup_signature"] = bytes(signed["invoice_signature"])
         order["invoice_pickup_signed_at"] = signed["captured_at"]
+    delivery=await db.delivery_signatures.find_one({"order_id":order_id})
+    if delivery:
+        order["invoice_delivery_signature"]=bytes(delivery["signature"])
+        order["invoice_delivery_signed_at"]=delivery["captured_at"]
+        order["invoice_delivery_recipient"]=delivery["recipient_name"]
     data = await asyncio.to_thread(build_invoice_pdf, order, order.get("invoice_supplier") or SUPPLIER)
     filename = re.sub(r"[^A-Za-z0-9_-]", "-", str(order["invoice_no"]))[:80]
     return Response(data, media_type="application/pdf", headers={
@@ -911,6 +917,8 @@ async def update_status(order_id: str, body: StatusBody, user=Depends(require_ro
         raise HTTPException(409, "Capture customer signatures on the invoice and transfer agreement after loading, before leaving pickup.")
     if body.status == "picked_up" and o.get("pickup_otp") and body.otp != o["pickup_otp"]:
         raise HTTPException(400, "Incorrect pickup OTP. Ask the customer for the 4-digit code.")
+    if body.status == "delivered" and o.get("requires_delivery_signature",o.get("requires_pickup_signatures",False)) and not o.get("delivery_signature_completed_at"):
+        raise HTTPException(409,"Capture the customer invoice signature after unloading at the destination before completing delivery.")
     n = iso(now_utc())
     upd = {"status": body.status, "updated_at": n}
     if body.status == "delivered":
@@ -936,7 +944,8 @@ async def rate_order(order_id: str, body: RateBody, user=Depends(require_role("c
     if o.get("rating"):
         raise HTTPException(409, "Already rated")
     rating = {"stars": body.stars, "comment": (body.comment or "").strip() or None, "at": iso(now_utc())}
-    await db.orders.update_one({"order_id": order_id}, {"$set": {"rating": rating}})
+    result=await db.orders.update_one({"order_id": order_id,"customer_id":user["user_id"],"status":"delivered","rating":None}, {"$set": {"rating": rating}})
+    if result.modified_count!=1: raise HTTPException(409,"Already rated or order changed")
     await db.users.update_one({"user_id": o["partner_id"]}, {"$inc": {"rating_sum": body.stars, "rating_count": 1}})
     return await db.orders.find_one({"order_id": order_id}, {"_id": 0})
 

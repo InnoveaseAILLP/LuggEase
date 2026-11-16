@@ -46,3 +46,8 @@ Then run `frontend/scripts/sign-android-device-apk.sh` from the repository root.
 ## Google Maps update
 
 Live Google autocomplete and details succeeded for both pickup (Coimbatore Railway Station) and drop (Coimbatore Airport). Selected addresses and Tamil Nadu state were checked on physical screenshots. No order was submitted. The final build includes independent field sessions, 350 ms debounce, manual fallback and Google Maps attribution above results. PDF MediaStore export is covered by mocked frontend tests and an isolated backend PDF integration test; a paid-order download was not executed on this phone.
+
+
+## Agreement and map update — 16 November 2026
+
+Signed Android Release update installed on the Oppo successfully with existing application data preserved. The native live-map component is covered by automated status, backgrounding and delayed-permission tests. After the owner unlocked the phone, the saved login restored and the existing unpaid order showed the ETA, INR 958 advance and INR 958 pickup balance. Its live map button was absent and the In-transit-only notice was visible. Agreement download succeeded to Downloads/LuggEase with the Transfer-Agreement filename. Existing order status and accepted agreement were preserved. No real pickup signatures or parcel journey are claimed as tested. Evidence: test_reports/oppo-agreement-map-check.json and screenshots/android-oppo-map-status-gate.png.

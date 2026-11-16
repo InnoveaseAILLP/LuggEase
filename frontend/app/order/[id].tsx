@@ -92,7 +92,7 @@ export default function OrderDetail() {
         <Button
           testID="order-next-status-button"
           title={NEXT[o.status]!.label}
-          disabled={needOtp && otp.length !== 4}
+          disabled={(needOtp && otp.length !== 4)||(o.status==="in_transit"&&!!(o.requires_delivery_signature??o.requires_pickup_signatures)&&!o.delivery_signature_completed_at)}
           loading={busy === "status"}
           onPress={() => act("status", `/orders/${o.order_id}/status`, { status: NEXT[o.status]!.status, otp: needOtp ? otp : undefined }, "Status updated")}
         />
@@ -165,7 +165,7 @@ export default function OrderDetail() {
 
         {isCustomer && o.status === "delivered" ? (
           <Card testID="rating-card">
-            <SectionTitle>{o.rating ? "Your rating" : "Rate your partner"}</SectionTitle>
+            <SectionTitle>{o.rating ? "Your rating" : "Rate your delivery experience"}</SectionTitle>
             <View style={{ flexDirection: "row", gap: space.sm }}>
               {[1, 2, 3, 4, 5].map((n) => {
                 const filled = (o.rating?.stars ?? stars) >= n;
@@ -180,7 +180,7 @@ export default function OrderDetail() {
               o.rating.comment ? <Text style={[s.muted, { marginTop: space.sm }]}>“{o.rating.comment}”</Text> : null
             ) : (
               <View style={{ gap: space.sm, marginTop: space.sm }}>
-                <Input testID="rating-comment-input" value={comment} onChangeText={setComment} placeholder="Tell us about the experience (optional)" />
+                <Input testID="rating-comment-input" value={comment} onChangeText={setComment} placeholder="Partner, handling, timeliness, tracking and overall delivery (optional)" maxLength={300} multiline />
                 <Button testID="rating-submit-button" compact title="Submit rating" disabled={!stars} loading={busy === "rate"} onPress={() => act("rate", `/orders/${o.order_id}/rate`, { stars, comment: comment || undefined }, "Thanks for rating!")} />
               </View>
             )}

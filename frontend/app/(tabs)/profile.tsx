@@ -65,7 +65,12 @@ export default function Profile() {
             <Row label="GST (Shift only, SAC 996511)" value="5%" />
             <Row label="GST (Pack & Shift, SAC 996729)" value="18%" />
             <Row label="Platform commission" value={`${cat.commission_rate}%`} />
-            <Row label="Bank" value={`${cat.supplier.bank.bank_name} · ${cat.supplier.bank.ifsc}`} />
+            <Row label="Bank" value={cat.supplier.bank.bank_name} />
+            <Text style={s.muted}>Account name</Text>
+            <Text style={s.bold}>{cat.supplier.bank.account_name}</Text>
+            <Row label="Account number" value={cat.supplier.bank.account_number} />
+            <Row label="IFSC" value={cat.supplier.bank.ifsc} />
+            <Text style={s.muted}>Branch: {cat.supplier.bank.branch}</Text>
           </Card>
         ) : null}
 

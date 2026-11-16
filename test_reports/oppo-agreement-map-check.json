@@ -1,0 +1,26 @@
+{
+  "device": "Oppo CPH2269 / Android 12",
+  "date": "2026-11-16",
+  "app": "in.innovease.luggease",
+  "checks": {
+    "saved_login_restored": true,
+    "existing_unpaid_order_displayed": true,
+    "booking_advance_inr": 958,
+    "pickup_balance_inr": 958,
+    "eta_visible": true,
+    "non_transit_map_notice_visible": true,
+    "non_transit_live_map_button_absent": true,
+    "agreement_download_success": true,
+    "agreement_filename_prefix": "LuggEase-Transfer-Agreement-",
+    "saved_to": "Downloads/LuggEase"
+  },
+  "order_modified": false,
+  "real_payment_made": false,
+  "agreement_signed_by_agent": false,
+  "limitations": [
+    "The existing order is unpaid; no real in-transit journey was initiated.",
+    "In-transit sharing and lifecycle restrictions are covered by isolated tests.",
+    "Existing accepted agreement bytes were preserved."
+  ],
+  "evidence": "docs/screenshots/android-oppo-map-status-gate.png"
+}

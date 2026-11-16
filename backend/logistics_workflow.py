@@ -15,7 +15,7 @@ from PIL import Image
 from shipment_documents import agreement_pdf, traffic_pdf, DECLARATION
 
 ACTIVE = ('assigned','picked_up','in_transit')
-TRANSIT = ('picked_up','in_transit')
+TRANSIT = ('in_transit',)
 
 def payload_for(body):
     return body.model_dump(exclude={'agreement_id','distance_km'})
@@ -63,6 +63,13 @@ class PickupSignatures(BaseModel):
     goods_loaded_and_checked: bool
     customer_present: bool
 
+class DeliverySignature(BaseModel):
+    signature: str = Field(max_length=165000)
+    recipient_name: str = Field(min_length=2,max_length=150)
+    arrived_at_destination: bool
+    goods_received_and_checked: bool
+    customer_present: bool
+
 class TrafficRequest(BaseModel):
     amount: Decimal = Field(gt=0,le=200,max_digits=5,decimal_places=2)
     reason: str = Field(min_length=15,max_length=500)
@@ -102,7 +109,7 @@ def install_workflow(ctx):
         ctx.limit_places(user)
         q=await ctx.routed_quote(body)
         n=ctx.now_utc()
-        a={'agreement_id':'LTA-'+uuid.uuid4().hex[:16].upper(),'version':1,'customer_id':user['user_id'],
+        a={'agreement_id':'LTA-'+uuid.uuid4().hex[:16].upper(),'version':2,'supplier':dict(ctx.SUPPLIER),'customer_id':user['user_id'],
             'customer_name':user.get('name') or user['email'],'customer_email':user['email'],
             'payload':payload_for(body),'payload_hash':digest(payload_for(body)),'quote':q,
             'status':'pending_review','ownership_declaration':DECLARATION,'created_at':ctx.iso(n),
@@ -155,7 +162,7 @@ def install_workflow(ctx):
     @api.post('/orders/{order_id}/tracking')
     async def report_location(order_id:str,body:LocationPoint,user=Depends(ctx.require_role('partner'))):
         o=await strict_order(order_id,user,True)
-        if o['status'] not in TRANSIT: raise HTTPException(409,'Location sharing is available only after pickup and before delivery.')
+        if o['status'] not in TRANSIT: raise HTTPException(409,'Live location sharing is available only while the shipment is In transit.')
         n=ctx.now_utc()
         if body.captured_at.tzinfo is None or abs((n-body.captured_at).total_seconds())>120 or body.mocked:
             raise HTTPException(422,'A recent, non-mocked location is required.')
@@ -170,6 +177,7 @@ def install_workflow(ctx):
     @api.get('/orders/{order_id}/tracking')
     async def tracking(order_id:str,user=Depends(ctx.current_user)):
         o=await strict_order(order_id,user)
+        if o['status'] not in TRANSIT: raise HTTPException(409,'The live map is available only while the shipment is In transit.')
         points=await ctx.db.tracking_points.find({'order_id':order_id},{'_id':0,'recorded_at':0,'partner_id':0}).sort('received_at',-1).limit(500).to_list(500)
         points.reverse()
         last=points[-1] if points else None
@@ -186,6 +194,11 @@ def install_workflow(ctx):
         if signature:
             o['invoice_pickup_signature']=bytes(signature['invoice_signature'])
             o['invoice_pickup_signed_at']=signature['captured_at']
+        delivery=await ctx.db.delivery_signatures.find_one({'order_id':order_id})
+        if delivery:
+            o['invoice_delivery_signature']=bytes(delivery['signature'])
+            o['invoice_delivery_signed_at']=delivery['captured_at']
+            o['invoice_delivery_recipient']=delivery['recipient_name']
         data=await asyncio.to_thread(ctx.build_invoice_pdf,o,o.get('invoice_supplier') or ctx.SUPPLIER)
         return Response(data,media_type='application/pdf',headers={'Cache-Control':'private, no-store','Content-Disposition':'attachment; filename="LuggEase-Pickup-Sales-Invoice.pdf"'})
 
@@ -210,6 +223,26 @@ def install_workflow(ctx):
             {'$set':{'pickup_signatures_completed_at':n}})
         if updated.modified_count!=1: raise HTTPException(409,'Order changed during signature capture. The captured record is retained for audit.')
         return {'captured_at':n,'agreement_id':a['agreement_id'],'invoice_no':o['invoice_no']}
+
+    @api.post('/orders/{order_id}/delivery-signature')
+    async def delivery_signature(order_id:str,body:DeliverySignature,user=Depends(ctx.require_role('partner'))):
+        o=await strict_order(order_id,user,True)
+        if o['status']!='in_transit' or o.get('delivery_signature_completed_at'):
+            raise HTTPException(409,'The delivery acknowledgement is available once, while In transit.')
+        if not body.recipient_name.strip() or not all((body.arrived_at_destination,body.goods_received_and_checked,body.customer_present)):
+            raise HTTPException(422,'The customer must be present at the destination and check the unloaded goods before signing.')
+        if o.get('payment_plan') and o['payment_plan']['paid_paise']<o['payment_plan']['total_paise']:
+            raise HTTPException(409,'The order invoice must be fully paid before delivery completion.')
+        png=decode_signature(body.signature);n=ctx.iso(ctx.now_utc())
+        record={'order_id':order_id,'recipient_name':body.recipient_name.strip(),'captured_by':user['user_id'],
+            'captured_at':n,'signature':png,'invoice_no':o.get('invoice_no'),
+            'arrival_confirmation':'partner_and_customer_declaration','signature_sha256':hashlib.sha256(png).hexdigest()}
+        try: await ctx.db.delivery_signatures.insert_one(record)
+        except ctx.DuplicateKeyError: raise HTTPException(409,'Delivery acknowledgement was already recorded.') from None
+        result=await ctx.db.orders.update_one({'order_id':order_id,'partner_id':user['user_id'],'status':'in_transit'},
+            {'$set':{'delivery_signature_completed_at':n,'delivery_recipient_name':record['recipient_name']}})
+        if result.modified_count!=1: raise HTTPException(409,'Order changed during acknowledgement; signature retained for audit.')
+        return {'captured_at':n,'recipient_name':record['recipient_name'],'arrival_confirmation':record['arrival_confirmation']}
 
     @api.get('/orders/{order_id}/transfer-agreement.pdf')
     async def signed_agreement(order_id:str,user=Depends(ctx.current_user)):

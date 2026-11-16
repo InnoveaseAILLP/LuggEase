@@ -78,14 +78,25 @@ def build_invoice_pdf(order, supplier):
     plan=order.get('payment_plan')
     if plan:
         story += [Spacer(1,8),p('Payment schedule: 50% at booking; remaining 50% after loading on pickup day, before departure.', small), p('Payments received: '+money(plan['paid_paise']/100)), p('Outstanding order balance: '+money(max(0,plan['total_paise']-plan['paid_paise'])/100))]
+    bank=supplier.get('bank') or {}
+    if str(bank.get('account_number','')).isdigit():
+        story += [Spacer(1,10),p('Bank details for NEFT / RTGS payment',small),
+            p(bank.get('account_name') or supplier['name'],small),
+            p(f"{bank.get('bank_name','')} | {bank.get('branch','')}",small),
+            p(f"Account number: {bank['account_number']} | IFSC: {bank.get('ifsc','')}",small)]
     story += [Spacer(1, 12), p('Tax payable under reverse charge: No.', small),
-              p('Computer generated invoice. No signature required.', small),
+              p('Computer generated invoice. Customer pickup acknowledgement is required after loading.', small),
               p('Need help? support@innovease-ai.in', small)]
     story += [Spacer(1, 12), p('Customer acknowledgement after loading', small)]
     if order.get('invoice_pickup_signature'):
         story += [Image(BytesIO(order['invoice_pickup_signature']), width=220, height=80, kind='proportional'), p(order.get('invoice_pickup_signed_at', ''), small)]
     else:
         story += [p('Customer handwritten signature: ____________________    Date/time: ____________________', small)]
+    if order.get('invoice_delivery_signature'):
+        story += [Spacer(1,12),p('Customer delivery acknowledgement after unloading',small),
+            p(order.get('invoice_delivery_recipient',''),small),
+            Image(BytesIO(order['invoice_delivery_signature']),width=220,height=80,kind='proportional'),
+            p(order.get('invoice_delivery_signed_at',''),small)]
     def footer(canvas, document):
         canvas.saveState(); canvas.setFont('Invoice', 8); canvas.setFillColor(colors.HexColor('#666666'))
         canvas.drawString(36, 24, 'LuggEase | Sales invoice'); canvas.drawRightString(559, 24, f'Page {document.page}'); canvas.restoreState()

@@ -54,7 +54,7 @@ export default function Orders() {
       <FlatList
         data={rows}
         keyExtractor={(o) => o.order_id}
-        renderItem={({ item }) => <View style={{gap:space.sm}}><OrderCard order={item} showPayout={user?.role === "partner"}/>{["assigned","picked_up","in_transit"].includes(item.status)?<ShipmentTracking order={item} compact/>:null}</View>}
+        renderItem={({ item }) => <View style={{gap:space.sm}}><OrderCard order={item} showPayout={user?.role === "partner"}/>{item.status==="in_transit"?<ShipmentTracking order={item} compact/>:null}</View>}
         contentContainerStyle={{ padding: space.lg, paddingBottom: bottomChrome + space.xl, gap: space.md }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
         ListEmptyComponent={!isLoading ? (
