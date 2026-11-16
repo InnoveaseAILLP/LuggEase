@@ -156,3 +156,12 @@ Validation: two relevant backend invoice/signature regressions passed; generated
 The earlier bank correction is live, including the beneficiary name/account/IFSC/bank/branch. The customer ID is excluded from payment instructions. No NEFT, RTGS or merchant settlement transaction was performed.
 
 Final device check: Oppo restored the saved customer login after the latest update. Profile displayed the supplied beneficiary name, account number, IFSC, IDFC FIRST Bank and Coimbatore Sai Baba colony Branch correctly, with no clipping. Screenshot: screenshots/android-oppo-bank-corrected.png. The temporary USB stay-awake setting was restored and confirmed as zero.
+
+
+## 2026-11-16 review closure and simulation continuation
+
+Full local-MongoDB backend run: 109 passed, 54 provider/environment tests skipped. Final focused regressions: 20 passed (overlapping full-run cases, including the new settlement race). Frontend: 58 passed; typecheck, lint, web, signed Android arm64 Release and iOS Release builds passed. Both partner-accept and admin-assign delivery journeys completed using synthetic identities, signatures, GPS and payment responses. Review report: review-remediation-2026-11-16.md. Owner selected simulation mode; native real-account and real journey/provider checks are not certified.
+
+Published API revision luggease-api-00014-lzq (image 97f797e1-c9af-4e92-ada0-ffd229507c6f), Hosting 066fbeb3b2b310ab. Web 200, direct private API 403, tokenless gateway 401; gateway-only invoker policy unchanged. No production customer record or real payment was changed by the tests.
+
+Final configured backend suite, run from backend without overriding test selection or worker configuration: **110 passed, no skips**. This supersedes the broader invocation count for the configured suite; third-party mongomock deprecation warnings remain informational.

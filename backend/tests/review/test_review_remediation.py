@@ -76,3 +76,30 @@ def test_gateway_renderer_binds_issuer_audience_and_private_backend_consistently
  ('valid-project','https://example.run.app/path'),('valid-project','https://example.run.app?override=1')])
 def test_gateway_renderer_rejects_unsafe_substitutions(project,url):
     with pytest.raises(ValueError):gateway.render_gateway(project,url)
+
+@pytest.mark.asyncio
+async def test_settlement_race_cannot_replace_recorded_reference(monkeypatch):
+    """Force both admins past their reads before the atomic settlement write."""
+    order={'order_id':'TEST-ONLY','status':'delivered','partner_id':'driver',
+           'quote':{'partner_payout':100},'settlement':{'status':'pending'}}
+    gate=asyncio.Event();arrived=0;recorded=[]
+    async def read_order(*args,**kwargs):return dict(order)
+    async def write_order(query,update):
+        nonlocal arrived
+        assert query['status']=='delivered' and query['settlement.status']=={'$ne':'settled'}
+        arrived+=1
+        if arrived==2:gate.set()
+        await gate.wait()
+        if recorded:return SimpleNamespace(modified_count=0)
+        recorded.append(update['$set']['settlement']['utr'])
+        return SimpleNamespace(modified_count=1)
+    fake_db=SimpleNamespace(orders=SimpleNamespace(find_one=read_order,update_one=write_order),
+        users=SimpleNamespace(find_one=AsyncMock(return_value={'partner_profile':{'upi_id':'test@example'}})))
+    monkeypatch.setattr(server,'db',fake_db)
+    async def settle(reference):
+        try:
+            await server.settle_order('TEST-ONLY',server.SettleBody(utr=reference),{'role':'admin'})
+            return 200
+        except HTTPException as error:return error.status_code
+    result=await asyncio.gather(settle('TEST-REF-A'),settle('TEST-REF-B'))
+    assert sorted(result)==[200,409] and len(recorded)==1

@@ -1,6 +1,21 @@
 import Foundation
 import XcodeProj
 import PathKit
+// Pod regeneration can restore dependency targets below Xcode's supported minimum.
+// This mode updates only generated Pods settings, leaving the app and schemes intact.
+if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "--normalize-pods" {
+    let podsPath = Path(CommandLine.arguments[2])
+    let pods = try XcodeProj(path: podsPath)
+    for config in pods.pbxproj.buildConfigurations {
+        if let version = config.buildSettings["IPHONEOS_DEPLOYMENT_TARGET"] as? String,
+           (Double(version) ?? 0) < 16.1 {
+            config.buildSettings["IPHONEOS_DEPLOYMENT_TARGET"] = "16.1"
+        }
+    }
+    try pods.write(path: podsPath)
+    print("Normalized generated Pods deployment targets to iOS 16.1")
+    exit(0)
+}
 let path = Path(CommandLine.arguments[1])
 let project = try XcodeProj(path: path)
 let pbx = project.pbxproj

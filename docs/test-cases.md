@@ -161,3 +161,15 @@ The customer-provided agreement was reformatted as a separate unsigned copy, ret
 ## Complete delivery simulation
 
 `backend/tests/review/test_delivery_simulation.py` covers real route handlers from agreement review through advance, partner visibility/acceptance, loading signatures, pickup balance, OTP, picked up, in transit, private synthetic GPS, recipient acknowledgement, delivered, signed invoice export and five-star comments. Unrelated users, premature completion, blank signatures, missing arrival/goods acknowledgements and duplicate feedback are rejected. `frontend/__tests__/order-delivery.test.tsx` checks partner status controls, final-signature gating and five-star comment submission; delivery-navigation.test.ts checks encoded destinations/stops and URL bounds. See delivery-simulation.md for observed results and limitations.
+
+
+### Review closure / all-role simulation additions (2026-11-16)
+
+- Partner profile pending → administrator approval → self-accept or administrator assignment → pickup/loading signatures → pickup payment → in-transit tracking → recipient signature → delivered → customer feedback. Both assignment variants must pass independently with disposable fixtures.
+- Administrator settlement: reject non-admin, blank/short UTR, premature delivery state, and duplicate recording. Force two admins past their initial reads: one atomic write succeeds and the other returns 409, preserving the first reference. No bank transfer is made.
+- Shared rate limiting: 100 concurrent requests across independent handles allow exactly 60, then 429; a second user remains independent; expiry restores admission; database outage returns a sanitized 503.
+- Checkout serialization: closing-script payloads, <, >, &, Unicode line/paragraph separators cannot escape embedded JSON.
+- Environment protection: only recognized Live Mode credentials can enable production collection; unknown/missing/Test Mode credentials remain disabled.
+- Gateway renderer: generated production specification matches existing issuer/audience/backend values; invalid identifiers and non-Cloud-Run/unsafe URLs are rejected.
+
+Execution and scope are recorded in review-remediation-2026-11-16.md.

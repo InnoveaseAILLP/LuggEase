@@ -39,3 +39,7 @@ Cloud Run: luggease-api-00013-ckn, private invocation unchanged. Hosting version
 The complete status flow, signatures, payment fixtures, map data authorization and feedback were tested through real application routes with isolated identities, an in-memory database and mocked external payments/road routing. The native Google Maps app was checked separately using public addresses. Synthetic coordinates are not proof of a driven journey; destination confirmation is a partner/customer declaration. No real goods were moved, no real customer signed, and no actual delivery or review was created in production. Partner native-screen behavior was verified in component tests; the physical Oppo remained logged in as its existing customer.
 
 Evidence: test_reports/delivery-simulation.json, review-backend.xml, review-frontend.json; docs/screenshots/android-oppo-delivery-route-preview.png.
+
+## All-role extension — 16 November 2026
+
+The full simulation now runs twice: partner acceptance and administrator assignment. Both use API profile submission, pending approval and administrator approval rather than directly marking a driver approved. Additional checks cover non-admin denial, duplicate assignment, earnings, synthetic settlement recording and concurrent-settlement protection. Results are saved separately as test_reports/delivery-simulation-partner.json and test_reports/delivery-simulation-admin.json. See review-remediation-2026-11-16.md for the scope and verification limits. No transfer is performed by the settlement metadata test.

@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from pymongo import ASCENDING, DESCENDING, IndexModel
 from pymongo.errors import DuplicateKeyError
 from firebase_identity import verify_identity
@@ -1034,6 +1034,11 @@ async def admin_assign(order_id: str, body: AssignBody, user=Depends(require_rol
 class SettleBody(BaseModel):
     utr: str = Field(min_length=6, max_length=30, description="Bank transfer reference (UTR / NEFT / IMPS)")
 
+    @field_validator("utr", mode="before")
+    @classmethod
+    def normalize_utr(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
+
 
 @api.post("/admin/orders/{order_id}/settle")
 async def settle_order(order_id: str, body: SettleBody, user=Depends(require_role("admin"))):
@@ -1050,7 +1055,11 @@ async def settle_order(order_id: str, body: SettleBody, user=Depends(require_rol
         raise HTTPException(400, "Partner has no bank account or UPI ID on file")
     snap.update({"status": "settled", "utr": body.utr.strip().upper(), "settled_at": iso(now_utc()),
                  "amount": o["quote"]["partner_payout"]})
-    await db.orders.update_one({"order_id": order_id}, {"$set": {"settlement": snap}})
+    result = await db.orders.update_one(
+        {"order_id": order_id, "status": "delivered", "settlement.status": {"$ne": "settled"}},
+        {"$set": {"settlement": snap}})
+    if result.modified_count != 1:
+        raise HTTPException(409, "Already settled or order changed; please refresh")
     return await db.orders.find_one({"order_id": order_id}, {"_id": 0})
 
 
