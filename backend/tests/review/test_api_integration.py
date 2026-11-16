@@ -228,11 +228,14 @@ async def test_payment_snapshots_invoice_supplier_once(app, monkeypatch):
     assert repeated['invoice_supplier']['name']==original and repeated['invoice_no']==paid['invoice_no']
 
 
-def test_places_limit_bounds_upstream_cost(monkeypatch):
-    monkeypatch.setattr(server,'_places_requests',{})
-    monkeypatch.setattr(server.time,'monotonic',lambda: 100)
-    for _ in range(60): server.limit_places({'user_id':'bounded'})
-    with pytest.raises(HTTPException) as error: server.limit_places({'user_id':'bounded'})
+@pytest.mark.asyncio
+async def test_places_limit_bounds_upstream_cost(app,monkeypatch):
+    from datetime import timedelta
+    client,db=app
+    instant=server.now_utc()
+    monkeypatch.setattr(server,'now_utc',lambda:instant)
+    for _ in range(60): await server.limit_places({'user_id':'bounded'})
+    with pytest.raises(HTTPException) as error: await server.limit_places({'user_id':'bounded'})
     assert error.value.status_code==429
-    monkeypatch.setattr(server.time,'monotonic',lambda: 161)
-    server.limit_places({'user_id':'bounded'})
+    monkeypatch.setattr(server,'now_utc',lambda:instant+timedelta(seconds=61))
+    await server.limit_places({'user_id':'bounded'})
