@@ -577,7 +577,7 @@
 					"${PODS_ROOT}/React-renderercss",
 					"${PODS_ROOT}/React-cxxstableapi",
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
@@ -675,7 +675,7 @@
 					"${PODS_ROOT}/React-renderercss",
 					"${PODS_ROOT}/React-cxxstableapi",
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",

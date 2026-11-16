@@ -7,7 +7,7 @@ window.setShipmentPoints=function(points){
  if(!map){map=new google.maps.Map(document.getElementById('map'),{center:last,zoom:14,streetViewControl:false,fullscreenControl:true});line=new google.maps.Polyline({map,strokeColor:'#C85500',strokeWeight:4});marker=new google.maps.Marker({map,title:'Last device-reported delivery location'});}
  line.setPath(path);marker.setPosition(last);map.panTo(last);
 };
-window.addEventListener('message',e=>{if(e.source===parent&&['https://luggease.innovease-ai.in','https://luggease-innovease.web.app'].includes(e.origin)&&e.data?.type==='shipment-points')window.setShipmentPoints(e.data.points)});
+window.addEventListener('message',e=>{if(e.source===parent&&(['https://luggease.innovease-ai.in','https://luggease-innovease.web.app','http://localhost:5173','http://127.0.0.1:5173','http://localhost:3000'].includes(e.origin)||e.origin===window.location.origin)&&e.data?.type==='shipment-points')window.setShipmentPoints(e.data.points)});
 window.initShipmentMap=()=>window.setShipmentPoints(latest);
 fetch('/google-maps-config.json').then(r=>r.json()).then(c=>{if(!c.apiKey)throw Error();const s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?loading=async&callback=initShipmentMap&key='+encodeURIComponent(c.apiKey);s.onerror=()=>{document.getElementById('status').textContent='Map unavailable. Location coordinates remain visible in the app.'};document.head.appendChild(s)}).catch(()=>{document.getElementById('status').textContent='Shipment map is awaiting Google Maps configuration.'});
 </script></body></html>

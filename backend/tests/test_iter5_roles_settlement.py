@@ -1,11 +1,41 @@
 # Iteration 5: test users of all roles login + settlement visibility + invoice bank details
+from pathlib import Path
 import os
 import requests
 import pytest
 
-BASE_URL = os.environ.get("APP_BACKEND_URL", "").rstrip("/") or open("/app/frontend/.env").read().split("APP_BACKEND_URL=")[1].split("\n")[0].strip().strip('"').rstrip("/")
+
+def _resolve_base_url():
+    val = os.environ.get("APP_BACKEND_URL")
+    if val:
+        return val.rstrip("/")
+    root = Path(__file__).resolve().parents[2]
+    for cand in [Path("/app/frontend/.env"), root / "frontend" / ".env"]:
+        if cand.is_file():
+            try:
+                for line in cand.read_text().splitlines():
+                    if line.startswith("APP_BACKEND_URL="):
+                        return line.split("=", 1)[1].strip().strip('"').rstrip("/")
+            except Exception:
+                pass
+    return "http://localhost:8012"
+
+
+BASE_URL = _resolve_base_url()
 API = f"{BASE_URL}/api"
 PW = "Demo@12345"
+
+
+def _is_live_server_running():
+    try:
+        r = requests.get(f"{BASE_URL}/health", timeout=0.5)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+live_server_available = _is_live_server_running()
+pytestmark = pytest.mark.skipif(not live_server_available, reason="Live preview server is not running")
 
 
 def login(email, pw=PW):

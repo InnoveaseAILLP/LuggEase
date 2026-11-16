@@ -129,6 +129,9 @@ export function Stepper({ value, onChange, min = 0, step = 1, testID, format }: 
     <Pressable
       testID={`${testID}-${id}`}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={delta > 0 ? "Increase" : "Decrease"}
+      accessibilityState={{ disabled }}
       onPress={() => onChange(Math.max(min, +(value + delta).toFixed(2)))}
       hitSlop={6}
       style={({ pressed }) => ({

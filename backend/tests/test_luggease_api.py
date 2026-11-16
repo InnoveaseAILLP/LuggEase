@@ -3,18 +3,51 @@ import os
 import uuid
 import pytest
 import requests
+from pathlib import Path
 from pymongo import MongoClient
 
 
-def _env(path, key):
-    for line in open(path):
-        if line.startswith(key + "="):
-            return line.split("=", 1)[1].strip().strip('"')
+def _env(path, key, default=""):
+    val = os.environ.get(key)
+    if val:
+        return val
+    candidates = [Path(path)]
+    root = Path(__file__).resolve().parents[2]
+    if "frontend" in path:
+        candidates.append(root / "frontend" / ".env")
+    if "backend" in path:
+        candidates.append(root / "backend" / ".env")
+    for cand in candidates:
+        if cand.is_file():
+            try:
+                for line in cand.read_text().splitlines():
+                    if line.startswith(key + "="):
+                        return line.split("=", 1)[1].strip().strip('"')
+            except Exception:
+                pass
+    return default
 
 
-BASE_URL = (os.environ.get("APP_BACKEND_URL") or _env("/app/frontend/.env", "APP_BACKEND_URL")).rstrip("/")
+BASE_URL = _env("/app/frontend/.env", "APP_BACKEND_URL", "http://localhost:8012").rstrip("/")
 API = f"{BASE_URL}/api"
-mdb = MongoClient(_env("/app/backend/.env", "MONGO_URL"))[_env("/app/backend/.env", "DB_NAME")]
+_mongo_url = _env("/app/backend/.env", "MONGO_URL", "mongodb://localhost:27017")
+_db_name = _env("/app/backend/.env", "DB_NAME", "luggease_dev")
+try:
+    mdb = MongoClient(_mongo_url, serverSelectionTimeoutMS=500)[_db_name]
+except Exception:
+    mdb = None
+
+
+def _is_live_server_running():
+    try:
+        r = requests.get(f"{BASE_URL}/health", timeout=0.5)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+live_server_available = _is_live_server_running()
+pytestmark = pytest.mark.skipif(not live_server_available, reason="Live preview server is not running")
 
 ADMIN = {"email": "admin@luggease.in", "password": "Admin@12345"}
 STATE = {}

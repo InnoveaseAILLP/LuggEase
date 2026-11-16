@@ -145,7 +145,7 @@ export default function OrderDetail() {
             </View>
           </View>
           {(o.extra_stops ?? []).map((st, i) => (
-            <View key={i} style={{ flexDirection: "row", gap: space.md }}>
+            <View key={`${st}-${i}`} style={{ flexDirection: "row", gap: space.md }}>
               <Icon name="map-marker-plus-outline" size={18} color={colors.muted} />
               <Text style={[s.addr, { flex: 1, marginTop: 0 }]}>Stop {i + 1}: {st}</Text>
             </View>

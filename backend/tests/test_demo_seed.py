@@ -2,7 +2,9 @@
 import pytest
 import requests
 
-from test_luggease_api import API, ADMIN, h, quote_body, register, cleanup  # noqa: F401
+from test_luggease_api import API, ADMIN, h, quote_body, register, cleanup, live_server_available  # noqa: F401
+
+pytestmark = pytest.mark.skipif(not live_server_available, reason="Live preview server is not running")
 
 DEMO_PWD = "Demo@12345"
 

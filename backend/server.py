@@ -653,8 +653,8 @@ _places_requests: dict[str, deque] = {}
 def limit_places(user):
     now = time.monotonic()
     uid = user["user_id"]
-    # Bound memory as well as upstream requests. Instances scale only to one today.
-    if len(_places_requests) >= 10000:
+    # Bound memory as well as upstream requests. Prune expired windows proactively.
+    if len(_places_requests) >= 1000:
         for key in list(_places_requests):
             if not _places_requests[key] or _places_requests[key][-1] < now - 60:
                 del _places_requests[key]
