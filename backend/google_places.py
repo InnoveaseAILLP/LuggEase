@@ -43,4 +43,5 @@ async def details(place_id: str, session: str):
     state = next((c.get('longText', '') for c in components if 'administrative_area_level_1' in c.get('types', [])), '')
     if not result.get('formattedAddress'):
         raise HTTPException(422, 'This place has no address. Please choose another suggestion.')
-    return {'place_id': result.get('id', place_id), 'address': result['formattedAddress'], 'state': state}
+    city = next((c.get('longText', '') for c in components if 'locality' in c.get('types', []) or 'postal_town' in c.get('types', [])), '')
+    return {'place_id': result.get('id', place_id), 'address': result['formattedAddress'], 'state': state, 'city': city}

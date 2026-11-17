@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-17",
+  "frontend_tests": 144,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "android_release": "passed",
+  "ios_release": "passed",
+  "hosting_version": "68a4c85e2528f803",
+  "hour_options": 24,
+  "minute_options": 60,
+  "timezone": "Asia/Kolkata",
+  "backend_changes": false,
+  "live_ui_check": "Verified 24 hour choices and 60 minute choices; selected 23:59 then restored the original form selection without submitting an ETA.",
+  "native_installation": "builds prepared; not reinstalled for this update",
+  "screenshot": "docs/screenshots/delivery-time-dropdowns.jpg"
+}

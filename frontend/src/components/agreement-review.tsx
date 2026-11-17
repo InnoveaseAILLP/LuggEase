@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import {useEffect,useState} from 'react';
 import {Switch,Text,View} from 'react-native';
 import {useQuery} from '@tanstack/react-query';
@@ -14,7 +15,7 @@ export function AgreementReview({payload,onReady}:{payload:object;onReady:(id:st
  const {data}=useQuery({queryKey:['agreement',prepared?.agreement_id],queryFn:()=>api<Agreement>(`/agreements/${prepared!.agreement_id}`),enabled:!!prepared,refetchInterval:15000});
  const a=prepared?.status==='reviewed'?prepared:(data??prepared);
  useEffect(()=>{const expires=a?new Date(a.expires_at).getTime()-Date.now():0;onReady(a?.status==='reviewed'&&expires>0?a.agreement_id:null);if(expires<=0)return;const timer=setTimeout(()=>onReady(null),expires);return()=>clearTimeout(timer);},[a,onReady]);
- const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e:any){toast(e.message,'error');}finally{setBusy(false);}};
+ const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e:any){toast(getErrorMessage(e),'error');}finally{setBusy(false);}};
  return <Card style={{gap:space.sm}} testID="transfer-agreement-review">
   <SectionTitle>Logistics Transfer Agreement</SectionTitle>
   <Text style={{color:colors.muted}}>Review your goods and addresses, declare ownership, then accept the ownership declaration before placing the order.</Text>

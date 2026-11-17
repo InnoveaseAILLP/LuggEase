@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-17",
+  "revision": "luggease-api-00018-rw4",
+  "live_merchant_authentication": "read-only HTTP 200",
+  "runtime_check": "not available with existing operator permissions",
+  "runtime_secret_references": {
+    "RAZORPAY_KEY_ID": {
+      "key": "1",
+      "name": "luggease-razorpay-live-key-id"
+    },
+    "RAZORPAY_KEY_SECRET": {
+      "key": "1",
+      "name": "luggease-razorpay-live-key-secret"
+    }
+  },
+  "api_invokers": [
+    "serviceAccount:luggease-gateway@luggease-innovease.iam.gserviceaccount.com"
+  ],
+  "http_checks": {
+    "website": 200,
+    "private_api": 403,
+    "tokenless_gateway": 401
+  },
+  "live_charge_created": false,
+  "production_order_status_changed": false
+}

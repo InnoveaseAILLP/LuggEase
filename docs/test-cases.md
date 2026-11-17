@@ -160,7 +160,7 @@ The customer-provided agreement was reformatted as a separate unsigned copy, ret
 
 ## Complete delivery simulation
 
-`backend/tests/review/test_delivery_simulation.py` covers real route handlers from agreement review through advance, partner visibility/acceptance, loading signatures, pickup balance, OTP, picked up, in transit, private synthetic GPS, recipient acknowledgement, delivered, signed invoice export and five-star comments. Unrelated users, premature completion, blank signatures, missing arrival/goods acknowledgements and duplicate feedback are rejected. `frontend/__tests__/order-delivery.test.tsx` checks partner status controls, final-signature gating and five-star comment submission; delivery-navigation.test.ts checks encoded destinations/stops and URL bounds. See delivery-simulation.md for observed results and limitations.
+`backend/tests/review/test_delivery_simulation.py` covers real route handlers from agreement review through advance, partner visibility/acceptance, loading signatures, OTP-confirmed pickup, pickup balance, in transit, private synthetic GPS, recipient acknowledgement, delivered, signed invoice export and five-star comments. Unrelated users, premature completion, blank signatures, missing arrival/goods acknowledgements and duplicate feedback are rejected. `frontend/__tests__/order-delivery.test.tsx` checks partner status controls, final-signature gating and five-star comment submission; delivery-navigation.test.ts checks encoded destinations/stops and URL bounds. See delivery-simulation.md for observed results and limitations.
 
 
 ### Review closure / all-role simulation additions (2026-11-16)
@@ -173,3 +173,96 @@ The customer-provided agreement was reformatted as a separate unsigned copy, ret
 - Gateway renderer: generated production specification matches existing issuer/audience/backend values; invalid identifiers and non-Cloud-Run/unsafe URLs are rejected.
 
 Execution and scope are recorded in review-remediation-2026-11-16.md.
+
+### Roles, private administrator and reports (2026-11-16)
+
+| Case | Expected result |
+| --- | --- |
+| Login role choices | Accessible Customer/Delivery Partner controls only; controls disabled during sign-in; preference grants no role |
+| Admin setup | Separate unlisted entry with nominated email fixed; no public Admin control or Admin signup; secure password-link action uses entered email without handling a password |
+| New partner | Login preference preselects post-verification confirmation; only customer/partner can be selected; approval still required |
+| Existing role mismatch | API role wins and is explained on Home |
+| Forged or absent admin claim | Matching email alone grants no Admin role; removed required claim denies access |
+| Concurrent role changes | Exactly one initial choice wins; the other returns conflict; stored role cannot be overwritten |
+| Account directory | Non-admin denied; escaped search, role filter and pagination; no bank/identity/password fields |
+| Report finance | Invoice and actual payment dates differ correctly; duplicate payment references deduplicated; GST/taxable/invoice/cash/refund-due/settlement meanings remain separate |
+| Report dates and geography | India midnight inclusive start/exclusive end; invalid/oversized date ranges rejected; same city in two states stays separate; missing historical city is Unspecified |
+| Reconciliation / volume | Unallocated captures identified separately; over-limit report returns error, not a partial total |
+| CSV / report UI | Selected report exports all records; previews disclose 50-row cap; formula injection and quoting handled; customer cannot enable admin queries |
+
+
+### Unlisted administrator entry (2026-11-17)
+
+- Public login shows exactly two role choices, no administrator email and no Admin password-setup action, including after a stale Admin preference.
+- Exact dedicated pathname and optional trailing slash activate the portal; /admin, query flags, near matches and nested routes do not.
+- Native public entry does not activate the web-only administrator portal.
+- Administrator entry prefills the nominated email, prevents changing it and exposes no signup or public-role picker.
+- Non-admin existing sessions see an account barrier and cannot render reports at the administrator entry.
+- Live smoke: public and dedicated pages load, entry headers prevent indexing/referrer disclosure/caching, and private API authorization stays in place.
+
+
+### Friendly error regression coverage — 17 November 2026
+
+- Sign-in: wrong credentials/unknown account, duplicate registration, disabled account, expired session/link, weak password, throttling, Google popup cancellation/blocking and mobile Google services failures.
+- Unknown failures: no provider branding, SDK codes, stack traces, submitted validation values or secrets displayed.
+- API: friendly field validation; useful delivery-workflow conflicts preserved; service failures, malformed responses and private downloads handled safely. Stale unauthorized responses cannot clear a newer identity.
+- Payments: an unconfirmed receipt or interrupted request gives status-refresh guidance before another payment attempt.
+- Location: denied permission, unavailable position and timeout have distinct recovery instructions.
+- Live web check: synthetic invalid sign-in displays the friendly credential error. Existing user forms and sessions are preserved.
+
+
+### Invoice / pickup progression regression — 17 November 2026
+
+- An unpaid order cannot invoke invoice review; the reason is displayed. Confirmed advance enables the protected invoice download.
+- Advance verification automatically enters Finding partner exactly once and issues one invoice. Partner acceptance enters Partner assigned.
+- Missing signatures disable pickup. Signed pickup is permitted before balance collection; unpaid balance disables and rejects In transit.
+- Balance can be verified after Picked up without changing the existing invoice or duplicating payment. Paid balance enables transit.
+- Customer/admin status-update requests are rejected; only the assigned partner progresses delivery. Destination acknowledgement remains required before Delivered.
+- Two isolated lifecycle simulations cover synthetic navigation points, final invoice signature and five-star feedback; no real payment or production order was changed.
+
+
+### Checkout recovery — 17 November 2026
+
+- Concurrent checkout requests share one script download.
+- A failed or stalled checkout script gives recovery instructions and supports a new attempt.
+- An enabled merchant can open checkout using the server-priced ₹958 (95,800 paise) advance.
+- A disabled merchant cannot load checkout or create a payment order.
+- Payment availability refreshes periodically; the order footer explains pending merchant activation.
+
+
+### Test-order isolation and physical map views
+
+Test records cannot appear in real partner jobs or be accepted/dispatched, charged/reconciled against a live merchant or settled. Reporting and earnings omit them. Cancellation generates no real refund due; PDFs identify test/no money received on every page. Physical iPhone screenshots verify Customer and Delivery Partner maps under Orders using synthetic movement and fixture roles; real login/GPS/backend transport remains outside this simulation.
+
+
+### Partner Orders discovery and acceptance regression
+
+- Available jobs is the partner default; My jobs contains accepted orders and history. Customer Orders remains unchanged.
+- Accept movement order performs one acceptance request, refreshes both listings and opens the assigned order; stale/duplicate offers refresh safely. Footer controls are separate from the card navigation target.
+- Real offers enforce approval and registered vehicle capacity; the capacity filter precedes the 100-job limit.
+- Only an invited partner sees/accepts a test offer; owner-authorized per-order vehicle exceptions cannot affect real jobs. Other partners/customers are denied.
+- Concurrent accepts produce one success and one conflict. Test acceptance creates no real collection, earnings, payout or partner-rating increment.
+
+
+### Revised ETA and Start trip blockers — 17 November 2026
+
+- Convert 17:31 India time to the correct UTC instant; accept trimmed inputs and valid one-digit hour entry. Reject impossible calendar dates, invalid hours/minutes, past instants and dates beyond 30 days with precise messages.
+- Explain the revision-reason minimum inline: 4 for test orders, 10 for real deliveries. Test is accepted only for the test case.
+- Reject simulated balance for real orders, other partners/customer accounts, missing confirmation, unsigned pickup or incorrect workflow state. Never call a payment provider or create a real receipt.
+- Record remaining test credit idempotently without changing Picked up; Start trip becomes enabled after refreshed full test credit. Real orders never expose the simulated-balance button and still require actual payment.
+
+
+### Delivery-time dropdown selection — 17 November 2026
+
+Hour choices 00-23 and minute choices 00-59 replace free-text time input. Preserve individual minutes such as 19 and the 23:59 boundary; selecting either control keeps the other value. Disabled controls cannot change during submission. Existing India-time conversion, future date/range and reason validation still apply. The workflow test selects hour/minute controls before submitting the revision.
+
+### Additional system integration cases — 17 November 2026
+
+| ID | Scenario | Expected result | Execution |
+| --- | --- | --- | --- |
+| SIT-TRACK-01 | Switch a sharing component to another order; deliver a late callback from the old watcher | Old watcher cancelled, late callback ignored, new order requires explicit sharing | Pass; reproduced failure before fix |
+| SIT-TRACK-02 | Upload acknowledgement missing, malformed, or cannot be found in same-order read-back | No success confirmation; retry guidance | Pass |
+| SIT-TRACK-03 | Read-back has equivalent timestamp with normalized fractional seconds | Accepted as the same capture instant | Pass |
+| SIT-TRACK-04 | Actual frontend transport/helper posts to isolated FastAPI over HTTP; customer reads same receipt | Same stored coordinates/receipt, correct authorization, no private storage fields | Pass |
+| SIT-TRACK-05 | Customer uploads, outsider reads, or map requested before In transit | Rejected by API; no disclosure | Pass |
+| SIT-TRACK-06 | No fix for 121 seconds, then a stationary partner reports a new current fix | Last-known report marked stale; fresh fix restores active sharing | Pass |

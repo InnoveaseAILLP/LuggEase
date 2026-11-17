@@ -1,3 +1,4 @@
+import {UserFacingError} from '@/src/errors';
 import {Platform} from 'react-native';
 import {fs, media, open} from 'react-native-blob-util';
 import {apiPdf} from '@/src/api';
@@ -5,7 +6,7 @@ import {apiPdf} from '@/src/api';
 function base64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Could not read the invoice PDF.'));
+    reader.onerror = () => reject(new UserFacingError('Could not read the invoice PDF.'));
     reader.onload = () => resolve(String(reader.result).split(',')[1]);
     reader.readAsDataURL(blob);
   });
@@ -26,7 +27,7 @@ export async function downloadDocument(apiPath: string, invoiceNo: string) {
     if (Platform.OS === 'ios') await open.optionsMenu(path);
     else await open.file(path, {mime: 'application/pdf'});
   } catch {
-    throw new Error('No PDF viewer is available. Please install a PDF viewer and try again.');
+    throw new UserFacingError('No PDF viewer is available. Please install a PDF viewer and try again.');
   }
   // The operating system may still be reading the file; clear old invoice cache on the next export.
   const files = await fs.ls(fs.dirs.CacheDir);

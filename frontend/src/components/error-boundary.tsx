@@ -3,8 +3,8 @@
 // it shows up in the Metro output. Do not mount additional boundaries.
 
 
-import { Component, type ErrorInfo, type PropsWithChildren, useState } from "react";
-import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Component, type ErrorInfo, type PropsWithChildren } from "react";
+import { Platform, Pressable, Text, View } from "react-native";
 
 import { makeStyles } from "@/src/theme";
 
@@ -27,15 +27,14 @@ export class ErrorBoundary extends Component<PropsWithChildren, ErrorBoundarySta
 
   render() {
     if (this.state.error) {
-      return <ErrorFallback error={this.state.error} resetError={this.resetError} />;
+      return <ErrorFallback resetError={this.resetError} />;
     }
     return this.props.children;
   }
 }
 
-function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
+function ErrorFallback({ resetError }: { resetError: () => void }) {
   const styles = useStyles();
-  const [showDetails, setShowDetails] = useState(false);
 
   const handleReload = async () => {
     try {
@@ -52,7 +51,6 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
       <View style={styles.content}>
         <Text style={styles.title}>Something went wrong</Text>
         <Text style={styles.message}>Please reload the app to continue.</Text>
-        {__DEV__ ? <Text style={styles.devMessage}>{error.message}</Text> : null}
         <Pressable
           onPress={handleReload}
           testID="error-fallback-reload"
@@ -61,19 +59,8 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
         >
           <Text style={styles.buttonText}>Reload app</Text>
         </Pressable>
-        {__DEV__ ? (
-          <Pressable onPress={() => setShowDetails((v) => !v)} accessibilityRole="button" hitSlop={8}>
-            <Text style={styles.detailsToggle}>{showDetails ? "Hide details" : "Show details"}</Text>
-          </Pressable>
-        ) : null}
       </View>
-      {__DEV__ && showDetails ? (
-        <ScrollView style={styles.details} contentContainerStyle={styles.detailsContent}>
-          <Text selectable style={styles.detailsText}>
-            {error.stack ?? error.message}
-          </Text>
-        </ScrollView>
-      ) : null}
+
     </View>
   );
 }
@@ -100,11 +87,6 @@ const useStyles = makeStyles((colors) => ({
     fontSize: 15,
     textAlign: "center",
   },
-  devMessage: {
-    color: colors.error,
-    fontSize: 13,
-    textAlign: "center",
-  },
   button: {
     marginTop: 8,
     backgroundColor: colors.brandPrimary,
@@ -121,28 +103,5 @@ const useStyles = makeStyles((colors) => ({
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
-  },
-  detailsToggle: {
-    color: colors.muted,
-    fontSize: 13,
-    textDecorationLine: "underline",
-    paddingVertical: 8,
-  },
-  details: {
-    marginTop: 16,
-    maxHeight: 260,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  detailsContent: {
-    padding: 12,
-  },
-  detailsText: {
-    color: colors.onSurfaceSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
   },
 }));

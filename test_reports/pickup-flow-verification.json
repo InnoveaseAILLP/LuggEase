@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-17",
+  "frontend_tests": 116,
+  "backend_tests": 122,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "android_signed_release": "passed",
+  "ios_release_build": "passed",
+  "native_installation": "not performed for this update",
+  "hosting_version": "40038e7f5b836896",
+  "api_revision": "luggease-api-00017-5d6",
+  "build_id": "8beb4196-8b96-42ee-9705-c453414c28b7",
+  "live_bundle_prerequisite_messages": "verified",
+  "http_checks": {
+    "website": 200,
+    "private_api": 403,
+    "tokenless_gateway": 401
+  },
+  "invokers": [
+    "serviceAccount:luggease-gateway@luggease-innovease.iam.gserviceaccount.com"
+  ],
+  "live_payments": "left disabled at owner request; no merchant configuration changed",
+  "simulation": "both isolated delivery simulations passed; no real payment or production order changed"
+}

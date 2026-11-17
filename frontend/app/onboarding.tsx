@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -17,9 +18,9 @@ export default function Onboarding() {
   const s = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, setRole, logout } = useAuth();
+  const { user, entryRole, setEntryRole, setRole, logout } = useAuth();
   const toast = useToast();
-  const [role, setR] = useState<"customer" | "partner">("customer");
+  const [role, setR] = useState<"customer" | "partner">(entryRole==='partner'?'partner':'customer');
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [busy, setBusy] = useState(false);
 
@@ -30,9 +31,10 @@ export default function Onboarding() {
     }
     setBusy(true);
     try {
+      setEntryRole(role);
       await setRole(role, phone.replace(/\D/g, "").slice(-10) || undefined);
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setBusy(false);
     }
@@ -44,10 +46,12 @@ export default function Onboarding() {
         <BrandIcon size={80} />
         <Text style={s.h1}>Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}</Text>
         <Text style={s.sub}>How would you like to use LuggEase?</Text>
+        <Text style={s.desc}>Confirm your account type. It will be saved for future sign-ins; use a different account for another role.</Text>
+        {entryRole==='admin'&&<Text accessibilityRole="alert" style={{color:colors.error}}>This account has no assigned Admin access. You can register as a Customer or Delivery Partner below, or use a different account.</Text>}
         {OPTIONS.map((o) => {
           const active = role === o.role;
           return (
-            <Pressable key={o.role} testID={`role-option-${o.role}`} onPress={() => setR(o.role)} style={[s.card, active && { borderColor: colors.brandPrimary, backgroundColor: colors.brandTertiary }]}>
+            <Pressable key={o.role} accessibilityRole="radio" accessibilityLabel={o.title} accessibilityState={{checked:active,disabled:busy}} aria-checked={active} disabled={busy} testID={`role-option-${o.role}`} onPress={() => setR(o.role)} style={[s.card, active && { borderColor: colors.brandPrimary, backgroundColor: colors.brandTertiary }]}>
               <View style={s.iconBox}><Icon name={o.icon} size={28} color={colors.brandPrimary} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.title}>{o.title}</Text>

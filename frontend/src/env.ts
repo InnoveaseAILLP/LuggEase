@@ -1,3 +1,4 @@
+import {UserFacingError} from '@/src/errors';
 import Config from "react-native-config";
 
 import { storage } from "@/src/utils/storage";
@@ -17,8 +18,8 @@ let current: AppEnv = BUILD_ENV;
 
 export const baseUrl = () => {
   const url = ENVIRONMENTS.find((e) => e.key === current)?.url;
-  if (!url) throw new Error("The booking service is not available yet. Please try again later.");
-  if (current === "production" && !url.startsWith("https://")) throw new Error("A secure booking service is required.");
+  if (!url) throw new UserFacingError("The booking service is not available yet. Please try again later.");
+  if (current === "production" && !url.startsWith("https://")) throw new UserFacingError("A secure booking service is required.");
   return url.replace(/\/$/, "");
 };
 export const currentEnv = () => current;

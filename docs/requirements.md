@@ -133,3 +133,41 @@ Live-map display, location reads and partner location submissions require the ex
 Assigned partners can open Google Maps navigation to pickup; picked-up/in-transit jobs navigate to the destination with booked stops. Navigation is external and does not silently enable background parcel tracking. Customer and partner confirm arrival and unloaded goods before the recipient personally signs the final invoice. For bookings requiring pickup signatures, completion also requires delivery acknowledgement. Private invoice exports include both acknowledgements. Arrival is declared, not an independently verified geofence event.
 
 Only the owning customer may submit one review after Delivered, with 1–5 stars and up to 300 characters covering the entire delivery experience. Concurrent duplicate submissions must be rejected before incrementing partner rating statistics.
+
+## Login roles, owner administrator and reporting — 16 November 2026
+
+Show only Customer / Delivery Partner choices on public login. Provide administrator login at a separate unlisted web URL, with rmanojananth@innovease-ai.in prefilled and no public Admin link or signup. Persist permissions only through the verified API identity/profile, never through the choice. New customer/partner roles require explicit confirmation, are immutable through self-service and must be safe against concurrent requests. Display the saved role after sign-in and explain a requested-role mismatch. Partner approval remains required. Provision only the owner-nominated rmanojananth@innovease-ai.in administrator through a trusted signed claim; provide private email-based password setup, with no public Admin signup or fabricated verification.
+
+Provide an administrator-only searchable, paginated account-role directory and dated consolidated reports for transactions, daily/monthly invoiced sales and collections, GST, quoted commissions, unpaid balances, refunds due, recorded settlements, pickup/destination cities and states, booking status and service demand. Use India-time event dates, integer-paise calculations, explicit missing-city categories and separate financial meanings. Export complete report CSVs safely; disclose preview limits and reject overlarge ranges rather than silently truncating. Capture structured cities for new orders without rewriting historical records.
+
+
+### User-facing error descriptions — 17 November 2026
+
+All app error surfaces use the shared public-message formatter. Authentication errors explain the next step without provider branding or raw error codes. Incorrect credentials and unknown accounts share the same response. Known validation and delivery-workflow guidance is preserved; unexpected diagnostics use a safe fallback. Location errors explain permission, availability or timeout recovery. Payment verification/network failures instruct users to refresh payment status before retrying, with support guidance if money was deducted. Raw exceptions and stack traces are excluded from the on-screen crash fallback. Integration names, configuration keys and internal diagnostic logging remain available to maintain the application.
+
+
+### Invoice availability and partner delivery progression — 17 November 2026
+
+The pickup sales-invoice review action is disabled until the verified booking advance issues an invoice. Explain the prerequisite instead of requesting an unavailable document. A verified advance changes Awaiting payment to Finding partner; partner acceptance changes it to Partner assigned. The assigned partner records customer invoice/agreement signatures after loading and uses the customer pickup code to mark Picked up. The remaining 50% is payable after signatures while assigned or picked up. In transit requires the full invoice payment; Delivered requires the final customer acknowledgement where applicable. Only the assigned partner may use the delivery-status update endpoint; customer/admin attempts are rejected. The owner elected to leave live online collection disabled for this release; no credentials were activated and no payment was initiated.
+
+
+### Owner-authorized test record — 17 November 2026
+
+Order LE261116A46516 may receive an explicitly simulated booking advance for owner-requested testing. No real payment event is fabricated. Mark the record as is_test, issue only a TEST-prefixed non-tax invoice, identify simulated credit on screens, and exclude it from demand/revenue/collections, real partner jobs, earnings, payouts and refund obligations. Block live payment creation/reconciliation and real dispatch for that record. Require atomic unpaid-state and amount preconditions, and a read-only provider check for outstanding authorized/captured payments before conversion.
+
+
+### Agreement layout aligned with invoice — 17 November 2026
+
+New transfer agreements use document version 3 and the Sales Invoice visual style: A4, matching margins/fonts, branded logo/title/reference header, LLP details, customer block, route/goods tables, orange accents, numbered terms, signature area and page footers. Formatting a supplied archived unsigned copy preserves its source version and exact clause wording; it is labelled as a reformatted copy without changing review/signature status. Previously accepted PDF bytes/hashes remain immutable.
+
+
+### Partner order discovery and invited test jobs — 17 November 2026
+
+Partner Orders exposes Available jobs with explicit accept actions and My jobs for assigned/history views. Refresh partner approval/profile on pull-to-refresh, poll job availability, and invalidate offers/assigned orders after an atomic acceptance. Real offers require approved profiles, confirmed advances, an unassigned non-test order and compatible registered vehicle capacity; filter capacity before the newest-100 limit. Test offers use a separate scope restricted to the order’s owner-authorized allowed_partner_id. A vehicle exception is permitted only when explicitly enabled on that invited test order; real eligibility, live collection, earnings, reporting, payouts and partner rating statistics remain unaffected. Owner approved LE261116A46516 for vsaraswathi@innovease-ai.in as this one test exception.
+
+
+### Revised delivery inputs and explicit test pickup balance — 17 November 2026
+
+Validate DD-MM-YYYY and 24-hour India-time inputs before submission, round-trip calendar dates, require a future instant within 30 days, and provide inline recovery messages. Prefill an existing future ETA or a future suggestion when the old ETA has expired. Require 10 trimmed reason characters for real deliveries and 4 for clearly marked test orders. ETA revision does not itself authorize departure.
+
+For an invited, assigned test partner only, provide an explicit no-money-received pickup-balance simulation after pickup signatures and Picked up. It must reject real orders, other actors, unsigned pickup, mixed real payment records and missing confirmation; record test credit exactly once without adding provider receipts or changing trip status. Real orders retain full verified payment before transit.

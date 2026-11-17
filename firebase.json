@@ -3,7 +3,7 @@
     "providers": {
       "emailPassword": true,
       "googleSignIn": {
-        "oAuthBrandDisplayName": "Lugg-Ease",
+        "oAuthBrandDisplayName": "LuggEase",
         "supportEmail": "hello@innovease-ai.in",
         "authorizedRedirectUris": [
           "https://luggease-innovease.firebaseapp.com/__/auth/handler",
@@ -66,8 +66,58 @@
             "value": "no-cache"
           }
         ]
+      },
+      {
+        "source": "/staff-access/le-486fcbf0f847745b0313870027057766",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow, noarchive"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "/staff-access/le-486fcbf0f847745b0313870027057766/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow, noarchive"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ],
-    "site": "luggease-innovease"
+    "site": "luggease-innovease",
+    "redirects": [
+      {
+        "source": "/Privacy.html",
+        "destination": "/privacy.html",
+        "type": 301
+      }
+    ]
   }
 }

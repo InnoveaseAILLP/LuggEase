@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-17",
+  "hosting_version": "45d177f4f6aae919",
+  "website_status": 200,
+  "live_bundle_recovery_messages": "verified",
+  "frontend_tests": 122,
+  "frontend_suites": 22,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "merchant_activation": "pending owner-provided live credentials; no configuration changed",
+  "real_payments": "not attempted",
+  "checkout_price_test_paise": 95800
+}

@@ -1,3 +1,7 @@
+import {DeliveryTimeSelect} from './delivery-time-select';
+import {deliveryInputs,revisedDelivery} from '@/src/delivery-estimate';
+import {UserFacingError} from '@/src/errors';
+import {getErrorMessage} from '@/src/errors';
 import {useState} from 'react';
 import {Linking,Switch,Text,View} from 'react-native';
 import {useQuery} from '@tanstack/react-query';
@@ -16,22 +20,24 @@ export function ShipmentWorkflow({order:o,onChanged}:{order:Order;onChanged:()=>
  const {data:catalog}=useCatalog();
  const {user}=useAuth(),{colors}=useTheme(),toast=useToast();
  const partner=user?.role==='partner'&&o.partner_id===user.user_id,customer=o.customer_id===user?.user_id;
- const [date,setDate]=useState(''),[time,setTime]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false);
+ const [initial]=useState(()=>deliveryInputs(o.delivery_estimate?.expected_delivery_at));
+ const [date,setDate]=useState(initial.date),[time,setTime]=useState(initial.time),[reason,setReason]=useState(''),[busy,setBusy]=useState(false),[etaError,setEtaError]=useState('');
  const [signing,setSigning]=useState(false),[invoiceSig,setInvoiceSig]=useState(''),[agreementSig,setAgreementSig]=useState(''),[name,setName]=useState(o.customer_name||''),[otp,setOtp]=useState(''),[loaded,setLoaded]=useState(false),[present,setPresent]=useState(false);
  const [deliverySig,setDeliverySig]=useState(''),[recipient,setRecipient]=useState(o.customer_name||''),[arrived,setArrived]=useState(false),[received,setReceived]=useState(false),[recipientPresent,setRecipientPresent]=useState(false);
  const [chargeReason,setChargeReason]=useState(''),[amount,setAmount]=useState('200'),[evidence,setEvidence]=useState(false),[cash,setCash]=useState(false);
  const proof=useQuery({queryKey:['traffic-evidence',o.order_id],queryFn:()=>api<{points:TrackingPoint[]}>(`/orders/${o.order_id}/traffic-evidence`),enabled:evidence});
- const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();onChanged();}catch(e:any){toast(e.message,'error');}finally{setBusy(false);}};
+ const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();onChanged();}catch(e:any){toast(getErrorMessage(e),'error');}finally{setBusy(false);}};
  const doc=(path:string,title:string)=>run(async()=>{toast(await downloadDocument(path,title),'success');});
  return <View style={{gap:space.md}}>
+  {o.is_test?<Card><Text accessibilityRole="alert" style={{color:colors.warning}}>TEST ORDER — booking advance simulated. No money received. Excluded from real dispatch and financial reports.</Text></Card>:null}
   {o.payment_plan?<Card style={{gap:space.sm}}>
    <SectionTitle>50% booking advance + 50% pickup balance</SectionTitle>
    {catalog?.payment_configuration?.mode==="test"?<Text style={{color:colors.warning}}>Test payments only — no real money is collected.</Text>:null}
-   <Text style={{color:colors.onSurface}}>Booking advance: {inr(o.payment_plan.advance_paise/100)} · {o.payment_plan.advance_paid_paise?'Paid':'Awaiting payment'}</Text>
-   <Text style={{color:colors.onSurface}}>Pickup balance: {inr(o.payment_plan.balance_paise/100)} · {o.payment_plan.balance_paid_paise?'Paid':'Due after loading and signatures, before departure'}</Text>
-   <Text style={{color:colors.muted}}>Received: {inr(o.payment_plan.paid_paise/100)} · Outstanding: {inr((o.payment_plan.total_paise-o.payment_plan.paid_paise)/100)}</Text>
-   {customer&&catalog?.payment_configuration?.enabled?<Button variant="outline" title="Refresh payment status" loading={busy} onPress={()=>run(async()=>{await api('/payments/reconcile',{body:{order_id:o.order_id}});toast('Payment status refreshed.','success');})}/>:null}
-   {!catalog?.payment_configuration?.enabled?<Text style={{color:colors.muted}}>Online payment is temporarily unavailable. Please contact support.</Text>:null}
+   <Text style={{color:colors.onSurface}}>Booking advance: {inr(o.payment_plan.advance_paise/100)} · {o.payment_plan.advance_paid_paise?(o.is_test?'Simulated for testing':'Paid'):'Awaiting payment'}</Text>
+   <Text style={{color:colors.onSurface}}>Pickup balance: {inr(o.payment_plan.balance_paise/100)} · {o.payment_plan.balance_paid_paise?(o.is_test?'Simulated for testing':'Paid'):'Due after loading and signatures, before departure'}</Text>
+   <Text style={{color:colors.muted}}>{o.is_test?'Simulated credit':'Received'}: {inr(o.payment_plan.paid_paise/100)} · Outstanding: {inr((o.payment_plan.total_paise-o.payment_plan.paid_paise)/100)}</Text>
+   {customer&&!o.is_test&&catalog?.payment_configuration?.enabled?<Button variant="outline" title="Refresh payment status" loading={busy} onPress={()=>run(async()=>{await api('/payments/reconcile',{body:{order_id:o.order_id}});toast('Payment status refreshed.','success');})}/>:null}
+   {!catalog?.payment_configuration?.enabled?<Text style={{color:colors.muted}}>Online payments are not enabled yet. The payment button will become available once payments are enabled.</Text>:null}
   </Card>:null}
   <ShipmentTracking order={o}/>
   {partner&&['assigned','picked_up','in_transit'].includes(o.status)?<Card style={{gap:space.sm}}>
@@ -54,20 +60,21 @@ export function ShipmentWorkflow({order:o,onChanged}:{order:Order;onChanged:()=>
 
   {partner&&['assigned','picked_up','in_transit'].includes(o.status)?<Card style={{gap:space.sm}}>
    <SectionTitle>Revise approximate delivery</SectionTitle>
-   <Input label="Delivery date (DD-MM-YYYY)" value={date} onChangeText={setDate} placeholder="17-11-2026"/>
-   <Input label="Delivery time (HH:mm, India time)" value={time} onChangeText={setTime} placeholder="09:00"/>
-   <Input label="Reason for revision" value={reason} onChangeText={setReason} maxLength={500} multiline placeholder="Traffic, breakdown or other difficulty"/>
-   <Button title="Update customer delivery estimate" loading={busy} onPress={()=>run(async()=>{
-    if(!/^\d{2}-\d{2}-\d{4}$/.test(date)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))throw new Error('Enter the date and time in the shown format.');
-    const [day,month,year]=date.split('-');const value=new Date(`${year}-${month}-${day}T${time}:00+05:30`);
-    if(!Number.isFinite(value.getTime())||new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',day:'2-digit',month:'2-digit',year:'numeric'}).format(value).replaceAll('/','-')!==date)throw new Error('Enter a valid calendar date.');
-    await api(`/orders/${o.order_id}/delivery-estimate`,{body:{expected_delivery_at:value.toISOString(),reason}});toast('Delivery estimate updated for the customer.','success');
-   })}/>
+   <Input testID="delivery-revision-date" label="Delivery date (DD-MM-YYYY)" value={date} onChangeText={v=>{setDate(v);setEtaError('');}}/>
+   <DeliveryTimeSelect value={time} onChange={v=>{setTime(v);setEtaError('');}} disabled={busy}/>
+   <Input testID="delivery-revision-reason" label="Reason for revision" value={reason} onChangeText={v=>{setReason(v);setEtaError('');}} maxLength={500} multiline placeholder="Traffic, breakdown or other difficulty"/>
+   <Text style={{color:colors.muted}}>Use a future time in India time, within 30 days. Reason: at least {o.is_test?4:10} characters{o.is_test?' (for example, Test)':''}.</Text>
+   {etaError?<Text testID="delivery-revision-error" accessibilityRole="alert" style={{color:colors.error}}>{etaError}</Text>:null}
+   <Button title="Update customer delivery estimate" loading={busy} onPress={()=>{setEtaError('');return run(async()=>{
+    try{const payload=revisedDelivery(date,time,reason,!!o.is_test);await api(`/orders/${o.order_id}/delivery-estimate`,{body:payload});toast('Delivery estimate updated for the customer.','success');}
+    catch(error){setEtaError(getErrorMessage(error));throw error;}
+   });}}/>
   </Card>:null}
   {o.agreement_id?<Card style={{gap:space.sm}}>
    <SectionTitle>Transfer agreement and pickup signatures</SectionTitle>
    <Text style={{color:colors.onSurface}}>Sales invoice {o.invoice_no??'awaiting payment'} · {inr(o.quote.grand_total)}</Text>
-   <Button variant="outline" title="Review sales invoice PDF before signing" onPress={()=>doc(`/orders/${o.order_id}/pickup-invoice.pdf`,`${o.order_id}-Pickup-Invoice`)}/>
+   <Button testID="review-pickup-invoice-button" variant="outline" title="Review sales invoice PDF before signing" disabled={!o.invoice_no||busy} onPress={()=>doc(`/orders/${o.order_id}/pickup-invoice.pdf`,`${o.order_id}-Pickup-Invoice`)}/>
+   {!o.invoice_no?<Text accessibilityRole="alert" style={{color:colors.muted}}>Your sales invoice will be available after the 50% booking advance is confirmed.</Text>:null}
    <Button variant="outline" title="Download transfer agreement" onPress={()=>doc(`/orders/${o.order_id}/transfer-agreement.pdf`,o.agreement_id!)}/>
    <Text style={{color:colors.muted}}>{o.pickup_signatures_completed_at?`Customer signatures captured after loading: ${new Date(o.pickup_signatures_completed_at).toLocaleString()}`:'The customer must check loaded goods and sign the invoice and agreement before the partner leaves pickup.'}</Text>
    {partner&&o.status==='assigned'&&!o.pickup_signatures_completed_at?<>
@@ -90,7 +97,7 @@ export function ShipmentWorkflow({order:o,onChanged}:{order:Order;onChanged:()=>
    <Text style={{color:colors.muted}}>One request per shipment, maximum ₹200 including GST. Requires recorded route evidence covering at least five minutes and customer acceptance.</Text>
    <Input label="Additional amount including GST (maximum ₹200)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad"/>
    <Input label="Reason for congestion charge" value={chargeReason} onChangeText={setChargeReason} maxLength={500} multiline/>
-   <Button title="Send charge and route evidence to customer" loading={busy} onPress={()=>run(async()=>{const value=Number(amount);if(!Number.isFinite(value)||value<=0||value>200)throw new Error('Enter an amount above zero and no more than ₹200.');await api(`/orders/${o.order_id}/traffic-charge`,{body:{amount:value,reason:chargeReason}});toast('Charge sent for customer review.','success');})}/>
+   <Button title="Send charge and route evidence to customer" loading={busy} onPress={()=>run(async()=>{const value=Number(amount);if(!Number.isFinite(value)||value<=0||value>200)throw new UserFacingError('Enter an amount above zero and no more than ₹200.');await api(`/orders/${o.order_id}/traffic-charge`,{body:{amount:value,reason:chargeReason}});toast('Charge sent for customer review.','success');})}/>
   </Card>:null}
   {o.traffic_surcharge?<Card style={{gap:space.sm}}>
    <SectionTitle>Traffic charge · {inr(o.traffic_surcharge.amount)}</SectionTitle>

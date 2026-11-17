@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useQuery } from "@tanstack/react-query";
 import { appMetadata } from "@/src/config";
 import { useRouter } from "@/src/router";
@@ -54,7 +55,7 @@ export default function Deployment() {
       setSeeded(r.users);
       toast("Test users ready", "success");
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setSeeding(false);
     }

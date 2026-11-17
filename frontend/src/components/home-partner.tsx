@@ -1,3 +1,5 @@
+import {getErrorMessage} from '@/src/errors';
+import { AccountRole } from "./account-role";
 import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "react-native";
@@ -48,7 +50,7 @@ export function PartnerHome() {
       qc.invalidateQueries({ queryKey: ["orders"] });
       router.push(`/order/${id}`);
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
       jobs.refetch();
     } finally {
       setAccepting(null);
@@ -57,6 +59,7 @@ export function PartnerHome() {
 
   const header = (
     <View style={{ gap: space.md }}>
+      <AccountRole/>
       <View style={s.statusRow}>
         <BrandIcon size={44}/>
         <View style={{ flex: 1 }}>

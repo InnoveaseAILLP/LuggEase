@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "@/src/router";
 import { useState } from "react";
@@ -56,7 +57,7 @@ export default function OrderDetail() {
       if (msg) toast(msg, "success");
       refreshAll();
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setBusy(null);
     }
@@ -78,10 +79,15 @@ export default function OrderDetail() {
   const canAccept = role === "partner" && o.status === "paid" && !o.partner_id;
   const reached = (st: OrderStatus) => o.timeline.find((t) => t.status === st);
 
+  const paymentNotice = o.is_test ? "Test order — real payments are disabled." : !cat ? "Checking payment availability…" : !cat.payment_configuration?.enabled ? "Online payments are awaiting merchant activation. Payment cannot be collected yet." : null;
+  const paymentFooter = (stage:"advance"|"balance"|undefined, amount:number) => <View style={{gap:space.sm}}>
+    {paymentNotice?<Text accessibilityRole="alert" style={s.muted}>{paymentNotice}</Text>:null}
+    <PayButton orderId={o.order_id} amountLabel={inr(amount)} stage={stage} disabled={!!o.is_test||!cat?.payment_configuration?.enabled} onDone={refreshAll}/>
+  </View>;
   let footer: React.ReactNode = null;
-  if (isCustomer && o.status === "pending_payment") footer = <PayButton orderId={o.order_id} amountLabel={inr(o.payment_plan?o.payment_plan.advance_paise/100:q.grand_total)} stage={o.payment_plan?"advance":undefined} disabled={!cat?.payment_configuration?.enabled} onDone={refreshAll} />;
-  else if(isCustomer&&o.status==="assigned"&&o.pickup_signatures_completed_at&&o.payment_plan&&o.payment_plan.balance_paid_paise<o.payment_plan.balance_paise) footer=<PayButton orderId={o.order_id} amountLabel={inr(o.payment_plan.balance_paise/100)} stage="balance" disabled={!cat?.payment_configuration?.enabled} onDone={refreshAll}/>;
-  else if (canAccept) footer = <Button testID="order-accept-button" title={`Accept job · earn ${inr(q.partner_payout, 0)}`} icon="check-bold" loading={busy === "accept"} onPress={() => act("accept", `/orders/${o.order_id}/accept`, undefined, "Job accepted")} />;
+  if (isCustomer && o.status === "pending_payment") footer = paymentFooter(o.payment_plan?"advance":undefined,o.payment_plan?o.payment_plan.advance_paise/100:q.grand_total);
+  else if(isCustomer&&["assigned","picked_up"].includes(o.status)&&o.pickup_signatures_completed_at&&o.payment_plan&&o.payment_plan.balance_paid_paise<o.payment_plan.balance_paise) footer=paymentFooter("balance",o.payment_plan.balance_paise/100);
+  else if (canAccept) footer = <Button testID="order-accept-button" title={o.is_test?"Accept test job · no real earnings":`Accept job · earn ${inr(q.partner_payout, 0)}`} icon="check-bold" loading={busy === "accept"} onPress={() => act("accept", `/orders/${o.order_id}/accept`, undefined, o.is_test?"Test job accepted":"Job accepted")} />;
   else if (isMine && NEXT[o.status]) {
     const needOtp = o.status === "assigned";
     footer = (
@@ -89,10 +95,15 @@ export default function OrderDetail() {
         {needOtp ? (
           <Input testID="pickup-otp-input" value={otp} onChangeText={(t) => setOtp(t.replace(/\D/g, "").slice(0, 4))} keyboardType="number-pad" maxLength={4} placeholder="Enter 4-digit pickup OTP from customer" />
         ) : null}
+        {needOtp&&o.requires_pickup_signatures&&!o.pickup_signatures_completed_at?<Text style={s.muted}>Capture the customer’s invoice and agreement signatures after loading before confirming pickup.</Text>:null}
+        {o.status==="picked_up"&&o.payment_plan&&o.payment_plan.paid_paise<o.payment_plan.total_paise?<>
+          <Text style={s.muted}>{o.is_test?"This test order needs a simulated pickup balance before Start trip is enabled. No real payment is required.":"The customer must pay the remaining 50% pickup balance before you start the trip."}</Text>
+          {o.is_test&&o.pickup_signatures_completed_at?<Button testID="simulate-pickup-balance-button" title={`Record simulated pickup balance · ${inr(o.payment_plan.balance_paise/100)}`} loading={busy==="test-balance"} onPress={()=>act("test-balance",`/orders/${o.order_id}/simulate-pickup-balance`,{confirm_no_money_received:true},"Test balance recorded. No money received. You can now start the trip.")}/>:null}
+        </>:null}
         <Button
           testID="order-next-status-button"
           title={NEXT[o.status]!.label}
-          disabled={(needOtp && otp.length !== 4)||(o.status==="in_transit"&&!!(o.requires_delivery_signature??o.requires_pickup_signatures)&&!o.delivery_signature_completed_at)}
+          disabled={(needOtp && (otp.length !== 4||!!o.requires_pickup_signatures&&!o.pickup_signatures_completed_at))||(o.status==="picked_up"&&!!o.payment_plan&&o.payment_plan.paid_paise<o.payment_plan.total_paise)||(o.status==="in_transit"&&!!(o.requires_delivery_signature??o.requires_pickup_signatures)&&!o.delivery_signature_completed_at)}
           loading={busy === "status"}
           onPress={() => act("status", `/orders/${o.order_id}/status`, { status: NEXT[o.status]!.status, otp: needOtp ? otp : undefined }, "Status updated")}
         />
@@ -210,7 +221,7 @@ export default function OrderDetail() {
 
         {role !== "customer" ? (
           <Card style={{ backgroundColor: colors.brandTertiary, borderColor: colors.brandSecondary }}>
-            <SectionTitle>Earnings breakdown</SectionTitle>
+            <SectionTitle>{o.is_test?"Test quotation — no payout":"Earnings breakdown"}</SectionTitle>
             <Row label="Gross fare (excl. GST)" value={inr(q.taxable_value)} />
             <Row label={`LuggEase commission (${q.commission_rate}%)`} value={`- ${inr(q.platform_commission)}`} testID="order-commission" />
             {q.tip ? <Row label="Customer tip (100% yours)" value={`+ ${inr(q.tip)}`} testID="order-tip" /> : null}
@@ -229,7 +240,7 @@ export default function OrderDetail() {
                 {o.settlement.utr ? <Text testID="settlement-utr" style={s.muted}>UTR {o.settlement.utr} · {new Date(o.settlement.settled_at!).toLocaleDateString()}</Text> : null}
               </View>
             ) : null}
-            {role === "admin" && o.status === "delivered" && o.settlement?.status !== "settled" ? (
+            {role === "admin" && !o.is_test && o.status === "delivered" && o.settlement?.status !== "settled" ? (
               <View style={{ gap: space.sm, marginTop: space.md }}>
                 <Input testID="settle-utr-input" value={utr} onChangeText={(t) => setUtr(t.toUpperCase())} autoCapitalize="characters" placeholder="Bank transfer UTR / reference" />
                 <Button testID="settle-order-button" compact title={`Mark ${inr(q.partner_payout, 0)} as settled`} disabled={utr.trim().length < 6} loading={busy === "settle"} onPress={() => act("settle", `/admin/orders/${o.order_id}/settle`, { utr }, "Payout settled")} />

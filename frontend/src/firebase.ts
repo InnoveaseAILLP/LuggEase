@@ -1,3 +1,4 @@
+import {UserFacingError} from '@/src/errors';
 import {getApp} from '@react-native-firebase/app';
 import {getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification, sendPasswordResetEmail, signOut, reload, getIdToken, GoogleAuthProvider, signInWithCredential} from '@react-native-firebase/auth';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
@@ -13,12 +14,12 @@ export const identity = {
     await sendEmailVerification(user);
   },
   async google() {
-    if (!Config.GOOGLE_WEB_CLIENT_ID) throw new Error('Google sign-in is not configured.');
+    if (!Config.GOOGLE_WEB_CLIENT_ID) throw new UserFacingError('Google sign-in is temporarily unavailable. Use email sign-in or contact support.');
     GoogleSignin.configure({webClientId: Config.GOOGLE_WEB_CLIENT_ID});
     await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
     const result = await GoogleSignin.signIn();
-    if (result.type !== 'success') throw new Error('Google sign-in cancelled.');
-    if (!result.data.idToken) throw new Error('Google did not return an identity token.');
+    if (result.type !== 'success') throw new UserFacingError('Google sign-in cancelled.');
+    if (!result.data.idToken) throw new UserFacingError('Google sign-in could not be completed. Please try again.');
     await signInWithCredential(auth(), GoogleAuthProvider.credential(result.data.idToken));
   },
   async token(force = false) { const user = auth().currentUser; return user ? getIdToken(user, force) : null; },

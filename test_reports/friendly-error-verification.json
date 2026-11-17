@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-17",
+  "frontend_tests": 112,
+  "backend_tests": 122,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "android_release_build": "passed",
+  "ios_release_build": "passed",
+  "physical_device_checks": "not run for this update",
+  "hosting_version": "c19bb5c221219487",
+  "api_revision": "luggease-api-00016-t85",
+  "cloud_build": "7836fa77-a5fa-42b9-af5b-19ae58120cb7",
+  "public_login_invalid_credentials": "friendly message verified with synthetic account",
+  "http_checks": {
+    "website": 200,
+    "private_api": 403,
+    "gateway_without_login": 401
+  },
+  "api_invokers": [
+    "serviceAccount:luggease-gateway@luggease-innovease.iam.gserviceaccount.com"
+  ]
+}

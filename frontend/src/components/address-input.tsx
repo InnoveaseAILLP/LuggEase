@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, Text, View} from 'react-native';
 import {api} from '@/src/api';
@@ -11,7 +12,7 @@ const newSession = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
 });
 export function AddressInput({value, onChangeText, onSelect, testID}: {
   value: string; onChangeText: (text: string) => void;
-  onSelect: (place: {address: string; state: string}) => void; testID: string;
+  onSelect: (place: {address: string; state: string; city?: string}) => void; testID: string;
 }) {
   const {colors} = useTheme();
   const [focused, setFocused] = useState(false);
@@ -33,7 +34,7 @@ export function AddressInput({value, onChangeText, onSelect, testID}: {
           setSuggestions(result.suggestions);
           if (!result.suggestions.length) setError('No matching places. Try an area or city, or enter the address manually.');
         }
-      } catch (e: any) { if (revision.current === version) setError(e.message); }
+      } catch (e: any) { if (revision.current === version) setError(getErrorMessage(e)); }
       finally { if (revision.current === version) setBusy(false); }
     }, 350);
     return () => { clearTimeout(timer); ++revision.current; };
@@ -42,13 +43,13 @@ export function AddressInput({value, onChangeText, onSelect, testID}: {
     const version = ++revision.current;
     setBusy(true); setError(''); setSuggestions([]);
     try {
-      const place = await api<{address: string; state: string}>(`/places/details/${encodeURIComponent(item.place_id)}?session_token=${session.current}`);
+      const place = await api<{address: string; state: string; city?: string}>(`/places/details/${encodeURIComponent(item.place_id)}?session_token=${session.current}`);
       if (revision.current !== version) return;
       selected.current = place.address;
       session.current = newSession();
       onSelect(place);
       setFocused(false);
-    } catch (e: any) { if (revision.current === version) setError(e.message); }
+    } catch (e: any) { if (revision.current === version) setError(getErrorMessage(e)); }
     finally { if (revision.current === version) setBusy(false); }
   };
   return <View style={{gap: space.sm}}>

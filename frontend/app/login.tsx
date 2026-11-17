@@ -1,3 +1,4 @@
+import {getErrorMessage, errorCode} from '@/src/errors';
 import {Linking} from "react-native";
 import { Image } from "react-native";
 import { LinearGradient } from "@/src/components/linear-gradient";
@@ -9,6 +10,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth";
 import { Button, Input, radius, space } from "@/src/components/ui";
 import { BrandIcon } from "@/src/components/brand-icon";
+import {isAdminLoginEntry} from "@/src/login-entry";
+import {ADMIN_LOGIN_EMAIL} from "@/src/admin-entry-config";
+import { LoginRoleSelector } from "@/src/components/login-role-selector";
 import { makeStyles, useTheme } from "@/src/theme";
 
 const HERO = "https://images.unsplash.com/photo-1586781383963-8e66f88077ec?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
@@ -17,10 +21,12 @@ export default function Login() {
   const s = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { loginEmail, registerEmail, loginGoogle, resetPassword, resendVerification, completeVerification, logout } = useAuth();
+  const { entryRole, setEntryRole, loginEmail, registerEmail, loginGoogle, resetPassword, resendVerification, completeVerification, logout } = useAuth();
+  const adminEntry=isAdminLoginEntry();
+  const role=adminEntry?"admin":entryRole==="partner"?"partner":"customer";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(adminEntry?ADMIN_LOGIN_EMAIL:"");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [verification, setVerification] = useState(false);
@@ -37,12 +43,13 @@ export default function Login() {
       return;
     }
     setBusy(true);
+    setEntryRole(role);
     try {
       if (mode === "login") await loginEmail(email.trim(), password);
       else { await registerEmail(name.trim(), email.trim(), password); setVerification(true); setMessage("Verification email sent. Check your inbox and spam folder."); }
     } catch (e: any) {
-      setError(e.message);
-      if (e.message?.includes("verify your email")) setVerification(true);
+      setError(getErrorMessage(e));
+      if (errorCode(e) === "auth/email-not-verified") setVerification(true);
     } finally {
       setBusy(false);
     }
@@ -51,11 +58,12 @@ export default function Login() {
   const google = async () => {
     if (busy || gBusy) return;
     setGBusy(true);
+    setEntryRole(role);
     setError("");
     try {
       await loginGoogle();
     } catch (e: any) {
-      setError(e.message || "Google sign-in failed. Please try again.");
+      setError(getErrorMessage(e, "Google sign-in is temporarily unavailable. Please try again."));
     } finally {
       setGBusy(false);
     }
@@ -64,7 +72,7 @@ export default function Login() {
   async function run(action: () => Promise<void>) {
     if (busy || gBusy) return;
     setBusy(true); setError(""); setMessage("");
-    try { await action(); } catch (e: any) { setError(e.message || "Please try again."); } finally { setBusy(false); }
+    try { await action(); } catch (e: any) { setError(getErrorMessage(e)); } finally { setBusy(false); }
   }
 
   return (
@@ -81,17 +89,18 @@ export default function Login() {
         </View>
 
         <View style={s.sheet}>
-          <View style={s.segment}>
+          {adminEntry?<View style={{gap:space.sm}}><Text accessibilityRole="header" style={{fontSize:22,fontWeight:'700',color:colors.onSurface}}>Administrator sign in</Text><Text style={{color:colors.muted}}>Sign in with your assigned administrator account.</Text></View>:!verification&&<LoginRoleSelector role={role==='partner'?'partner':'customer'} disabled={busy||gBusy} onChange={value=>{setEntryRole(value);setError('');setMessage('');}}/>}
+          {!adminEntry&&<View style={s.segment}>
             {(["login", "register"] as const).map((m) => (
-              <Pressable accessibilityRole="button" key={m} testID={`auth-mode-${m}`} disabled={busy || gBusy} onPress={() => { setMode(m); setError(""); setMessage(""); }} style={[s.segBtn, mode === m && s.segActive]}>
+              <Pressable accessibilityRole="button" key={m} testID={`auth-mode-${m}`} disabled={busy || gBusy} accessibilityState={{disabled:busy||gBusy}} onPress={() => { setMode(m); setError(""); setMessage(""); }} style={[s.segBtn, mode === m && s.segActive]}>
                 <Text style={[s.segText, mode === m && { color: colors.onSurface }]}>{m === "login" ? "Sign in" : "Create account"}</Text>
               </Pressable>
             ))}
-          </View>
+          </View>}
 
           {!verification ? <View style={{ gap: space.md }}>
             {mode === "register" ? <Input testID="register-name-input" label="Full name" value={name} onChangeText={setName} autoComplete="name" /> : null}
-            <Input testID="auth-email-input" label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+            <Input testID="auth-email-input" label="Email" editable={!adminEntry} value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             <Input testID="auth-password-input" label="Password" value={password} onChangeText={setPassword} placeholder={mode === "register" ? "Minimum 8 characters" : "Your password"} secureTextEntry={!showPassword} autoComplete={mode === "register" ? "new-password" : "current-password"} />
             <Pressable accessibilityRole="button" onPress={() => setShowPassword(!showPassword)}><Text>{showPassword ? "Hide password" : "Show password"}</Text></Pressable>
             {error ? <Text testID="auth-error" style={{ color: colors.error, fontSize: 13 }}>{error}</Text> : null}
@@ -104,7 +113,7 @@ export default function Login() {
           </View>}
           {!!message && <Text accessibilityRole="alert">{message}</Text>}
           {verification && !!error && <Text accessibilityRole="alert" style={{color:colors.error}}>{error}</Text>}
-          {!verification && <Button title="Forgot password?" variant="outline" disabled={busy || gBusy} onPress={() => run(async () => { await resetPassword(email); setMessage("If an account exists, a password reset link has been sent. Check your inbox and spam folder."); })} />}
+          {!verification && <Button title={role==='admin'?"Set / reset admin password":"Forgot password?"} variant="outline" disabled={busy || gBusy} onPress={() => run(async () => { await resetPassword(email); setMessage("If an account exists, a secure password link has been sent. Choose your password using that link privately. Check your inbox and spam folder."); })} />}
 
           {!verification && <><View style={s.orRow}><View style={s.line} /><Text style={s.or}>or</Text><View style={s.line} /></View>
           <Button testID="google-login-button" variant="outline" icon="google" title="Continue with Google" onPress={google} loading={gBusy} disabled={busy} /></>}

@@ -75,16 +75,17 @@ async def test_advance_and_pickup_balance_exact_once_and_invoice_unchanged(app,m
     await db.orders.update_one({'order_id':oid},{'$set':{'status':'assigned','partner_id':driver['user_id']}})
     assert (await client.post('/api/payments/create',headers=headers('alice'),json=balance_body)).status_code==409
     await db.orders.update_one({'order_id':oid},{'$set':{'pickup_signatures_completed_at':server.iso(server.now_utc())}})
-    assert (await client.post(f'/api/orders/{oid}/status',headers=headers('driver'),json={'status':'picked_up','otp':o['pickup_otp']})).status_code==409
+    assert (await client.post(f'/api/orders/{oid}/status',headers=headers('driver'),json={'status':'picked_up','otp':o['pickup_otp']})).status_code==200
+    assert (await client.post(f'/api/orders/{oid}/status',headers=headers('driver'),json={'status':'in_transit'})).status_code==409
     balance=(await client.post('/api/payments/create',headers=headers('alice'),json=balance_body)).json()
     assert balance['amount']==plan['balance_paise'] and balance['razorpay_order_id']!=a['razorpay_order_id']
     finished=await client.post('/api/payments/verify',headers=headers('alice'),json=receipt(balance,payments,'pay_balance'))
     assert finished.status_code==200,finished.text
     final=finished.json()
-    assert final['status']=='assigned' and final['payment_plan']['paid_paise']==plan['total_paise']
+    assert final['status']=='picked_up' and final['payment_plan']['paid_paise']==plan['total_paise']
     assert final['invoice_no']==invoice and final['invoice_supplier']==supplier and final['quote']==o['quote']
     assert len(final['payments'])==2
-    assert (await client.post(f'/api/orders/{oid}/status',headers=headers('driver'),json={'status':'picked_up','otp':o['pickup_otp']})).status_code==200
+    assert (await client.post(f'/api/orders/{oid}/status',headers=headers('driver'),json={'status':'in_transit'})).status_code==200
     assert (await client.post('/api/payments/create',headers=headers('alice'),json=balance_body)).status_code==409
 
 

@@ -1,3 +1,4 @@
+from typing import Literal
 import asyncio
 import base64
 import hashlib
@@ -12,7 +13,7 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, ConfigDict
 from PIL import Image
-from shipment_documents import agreement_pdf, traffic_pdf, DECLARATION
+from shipment_documents import agreement_pdf, traffic_pdf, DECLARATION, AGREEMENT_DOCUMENT_VERSION
 
 ACTIVE = ('assigned','picked_up','in_transit')
 TRANSIT = ('in_transit',)
@@ -37,7 +38,7 @@ def decode_signature(value):
         if sum(pixels[:180])<60: raise ValueError()
         return data
     except Exception:
-        raise HTTPException(422,'Provide a non-empty handwritten PNG signature.') from None
+        raise HTTPException(422,'Draw a clear handwritten signature before continuing.') from None
 
 class Acceptance(BaseModel):
     ownership_confirmed: bool
@@ -45,7 +46,10 @@ class Acceptance(BaseModel):
 
 class ETAChange(BaseModel):
     expected_delivery_at: datetime
-    reason: str = Field(min_length=10,max_length=500)
+    reason: str = Field(max_length=500)
+
+class TestPickupBalance(BaseModel):
+    confirm_no_money_received: Literal[True]
 
 class LocationPoint(BaseModel):
     model_config=ConfigDict(allow_inf_nan=False)
@@ -109,7 +113,7 @@ def install_workflow(ctx):
         await ctx.limit_places(user)
         q=await ctx.routed_quote(body)
         n=ctx.now_utc()
-        a={'agreement_id':'LTA-'+uuid.uuid4().hex[:16].upper(),'version':2,'supplier':dict(ctx.SUPPLIER),'customer_id':user['user_id'],
+        a={'agreement_id':'LTA-'+uuid.uuid4().hex[:16].upper(),'version':AGREEMENT_DOCUMENT_VERSION,'supplier':dict(ctx.SUPPLIER),'customer_id':user['user_id'],
             'customer_name':user.get('name') or user['email'],'customer_email':user['email'],
             'payload':payload_for(body),'payload_hash':digest(payload_for(body)),'quote':q,
             'status':'pending_review','ownership_declaration':DECLARATION,'created_at':ctx.iso(n),
@@ -144,14 +148,35 @@ def install_workflow(ctx):
         await ctx.db.transfer_agreements.update_one({'agreement_id':agreement_id,'used_at':None},{'$set':{'ownership_accepted_at':accepted,'status':'reviewed'}})
         return {'agreement_id':agreement_id,'status':'reviewed','ownership_accepted_at':accepted}
 
+    @api.post('/orders/{order_id}/simulate-pickup-balance')
+    async def simulate_pickup_balance(order_id:str,body:TestPickupBalance,user=Depends(ctx.require_role('partner'))):
+        o=await strict_order(order_id,user,True)
+        if not o.get('is_test') or o.get('testing',{}).get('allowed_partner_id')!=user['user_id']:
+            raise HTTPException(403,'Only the invited partner can record a balance for this test order.')
+        if o['status']!='picked_up' or not o.get('pickup_signatures_completed_at'):
+            raise HTTPException(409,'Complete the customer pickup signatures and confirm pickup first.')
+        if o.get('payments') or o.get('payment') or o.get('testing',{}).get('actual_received_paise')!=0:
+            raise HTTPException(409,'This order needs a payment review before a test balance can be recorded.')
+        plan=o.get('payment_plan') or {}
+        if not plan or plan.get('advance_paid_paise')!=plan.get('advance_paise'):
+            raise HTTPException(409,'The test booking advance must be recorded first.')
+        if plan.get('paid_paise')==plan['total_paise'] and plan.get('balance_paid_paise')==plan['balance_paise']:
+            return ctx.partner_view(o)
+        n=ctx.iso(ctx.now_utc())
+        result=await ctx.db.orders.update_one({'order_id':order_id,'partner_id':user['user_id'],'is_test':True,'testing.allowed_partner_id':user['user_id'],'testing.actual_received_paise':0,'status':'picked_up','pickup_signatures_completed_at':{'$exists':True},'payment_plan.balance_paid_paise':0,'payment_plan.paid_paise':plan['advance_paise']},
+            {'$set':{'payment_plan.balance_paid_paise':plan['balance_paise'],'payment_plan.paid_paise':plan['total_paise'],'testing.simulated_balance_paise':plan['balance_paise'],'testing.balance_simulated_at':n,'testing.balance_simulated_by':user['user_id'],'updated_at':n}})
+        if result.modified_count!=1:raise HTTPException(409,'The order changed. Refresh its payment status before trying again.')
+        return ctx.partner_view(await ctx.db.orders.find_one({'order_id':order_id},{'_id':0}))
+
     @api.post('/orders/{order_id}/delivery-estimate')
     async def update_eta(order_id:str,body:ETAChange,user=Depends(ctx.require_role('partner'))):
         o=await strict_order(order_id,user,True)
         if o['status'] not in ACTIVE: raise HTTPException(409,'This shipment is no longer active.')
         n=ctx.now_utc()
-        if len(body.reason.strip())<10: raise HTTPException(422,'Explain the reason for the delivery revision.')
+        minimum=4 if o.get('is_test') else 10
+        if len(body.reason.strip())<minimum: raise HTTPException(422,f'Enter at least {minimum} characters for the revision reason.')
         if body.expected_delivery_at.tzinfo is None or not n<body.expected_delivery_at<=n+timedelta(days=30):
-            raise HTTPException(422,'Choose a future date/time with a timezone, within 30 days.')
+            raise HTTPException(422,'Choose a future delivery date and time within the next 30 days.')
         change={'expected_delivery_at':body.expected_delivery_at.isoformat(),'reason':body.reason.strip(),
             'source':'partner','updated_by':user['user_id'],'updated_at':ctx.iso(n),'previous':(o.get('delivery_estimate') or {}).get('expected_delivery_at')}
         result=await ctx.db.orders.update_one({'order_id':order_id,'partner_id':user['user_id'],'status':{'$in':list(ACTIVE)}},
@@ -165,7 +190,7 @@ def install_workflow(ctx):
         if o['status'] not in TRANSIT: raise HTTPException(409,'Live location sharing is available only while the shipment is In transit.')
         n=ctx.now_utc()
         if body.captured_at.tzinfo is None or abs((n-body.captured_at).total_seconds())>120 or body.mocked:
-            raise HTTPException(422,'A recent, non-mocked location is required.')
+            raise HTTPException(422,'Your current location could not be confirmed. Enable precise location and try again from your delivery phone.')
         last=await ctx.db.tracking_points.find_one({'order_id':order_id},sort=[('received_at',-1)])
         if last and (n-last['recorded_at'].replace(tzinfo=timezone.utc)).total_seconds()<10:
             raise HTTPException(429,'Please wait before sending another location.')
@@ -189,7 +214,7 @@ def install_workflow(ctx):
     @api.get('/orders/{order_id}/pickup-invoice.pdf')
     async def pickup_invoice(order_id:str,user=Depends(ctx.current_user)):
         o=await strict_order(order_id,user)
-        if not o.get('invoice_no'): raise HTTPException(409,'The sales invoice is not issued yet.')
+        if not o.get('invoice_no'): raise HTTPException(409,'Your sales invoice will be available after the 50% booking advance is confirmed.')
         signature=await ctx.db.pickup_signatures.find_one({'order_id':order_id})
         if signature:
             o['invoice_pickup_signature']=bytes(signature['invoice_signature'])
@@ -206,6 +231,7 @@ def install_workflow(ctx):
     async def pickup_signatures(order_id:str,body:PickupSignatures,user=Depends(ctx.require_role('partner'))):
         o=await strict_order(order_id,user,True)
         if o['status']!='assigned' or o.get('pickup_signatures_completed_at'): raise HTTPException(409,'Pickup signatures are already captured or pickup is closed.')
+        if not o.get('invoice_no'): raise HTTPException(409,'Confirm the booking advance before capturing pickup signatures.')
         if not body.goods_loaded_and_checked or not body.customer_present: raise HTTPException(422,'The customer must check the loaded goods and be present to sign.')
         await ctx.limit_places(user)
         if not hmac.compare_digest(body.pickup_otp,o.get('pickup_otp','')): raise HTTPException(400,'Incorrect pickup OTP.')

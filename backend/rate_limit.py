@@ -19,6 +19,6 @@ async def enforce_rate_limit(collection, user_id, now, limit=60):
             admitted=await collection.find_one_and_update(query,update,upsert=False,
                 return_document=ReturnDocument.AFTER,projection={'_id':1})
     except PyMongoError:
-        raise HTTPException(503,'Request limiting is temporarily unavailable. Please retry shortly.') from None
+        raise HTTPException(503,'The service is busy. Please try again shortly.') from None
     if admitted is None:
         raise HTTPException(429,'Too many requests. Please wait a minute.',headers={'Retry-After':'60'})

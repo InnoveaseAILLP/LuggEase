@@ -1,0 +1,16 @@
+{
+  "result": "passed",
+  "transport": "real loopback HTTP; real frontend API and tracking helper; real FastAPI routes",
+  "isolation": "in-memory Mongo substitute; synthetic identities and coordinates; no production records or external providers",
+  "checks": [
+    "unauthenticated blocked",
+    "partner upload read back by real client",
+    "customer reads same receipt and coordinates",
+    "private fields omitted",
+    "customer cannot upload",
+    "map disabled before transit",
+    "unrelated customer denied"
+  ],
+  "real_gps": false,
+  "real_money": false
+}

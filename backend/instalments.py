@@ -23,7 +23,7 @@ def due_stage(order):
         if order['status']!='pending_payment': raise HTTPException(409,'Order payment state changed. Refresh before paying.')
         return 'advance',plan['advance_paise']
     if plan['balance_paid_paise']<plan['balance_paise']:
-        if order['status']!='assigned' or not order.get('pickup_signatures_completed_at'):
+        if order['status'] not in ('assigned','picked_up') or not order.get('pickup_signatures_completed_at'):
             raise HTTPException(409,'The pickup balance is payable after loading and customer signatures, before departure.')
         return 'balance',plan['balance_paise']
     raise HTTPException(409,'The order invoice is already fully paid.')
@@ -51,7 +51,7 @@ async def create_instalment(ctx,order,user,request,expected_stage):
                 await ctx.db.payment_sessions.delete_one({'session_key':key,'claim':session['claim'],'status':'creating'})
                 raise HTTPException(502,'Unable to prepare payment. Please try again.') from None
             if remote.get('amount')!=amount or remote.get('currency')!='INR' or not remote.get('id'):
-                raise HTTPException(502,'The provider returned an invalid payment order. Please contact support.')
+                raise HTTPException(502,'The payment could not be prepared. Please contact support.')
             session.update({'razorpay_order_id':remote['id'],'status':'created'})
             await ctx.db.payment_sessions.update_one({'session_key':key,'claim':session['claim']},{'$set':{'razorpay_order_id':remote['id'],'status':'created'}})
     if session.get('status')!='created': raise HTTPException(409,'Payment is already recorded or awaiting review. Refresh the order.')
@@ -62,10 +62,10 @@ async def create_instalment(ctx,order,user,request,expected_stage):
 
 
 async def confirm_instalment(ctx,session,payment_id,signature,customer_id):
-    if customer_id and session['customer_id']!=customer_id: raise HTTPException(404,'Unknown payment order')
+    if customer_id and session['customer_id']!=customer_id: raise HTTPException(404,'The payment could not be found. Refresh the order or contact support.')
     provider=ctx.rzp_client()
     expected=hmac.new(ctx.os.environ['RAZORPAY_KEY_SECRET'].encode(),f"{session['razorpay_order_id']}|{payment_id}".encode(),hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected,signature): raise HTTPException(400,'Invalid payment signature')
+    if not hmac.compare_digest(expected,signature): raise HTTPException(400,'The payment could not be verified. Refresh payment status before trying to pay again. Contact support if money was deducted.')
     order=await ctx.db.orders.find_one({'order_id':session['order_id']},{'_id':0})
     if not order: raise HTTPException(404,'Order not found')
     existing=next((p for p in order.get('payments',[]) if p.get('razorpay_order_id')==session['razorpay_order_id']),None)
@@ -82,7 +82,7 @@ async def confirm_instalment(ctx,session,payment_id,signature,customer_id):
     n=ctx.iso(ctx.now_utc());stage=session['stage'];amount=session['amount_paise']
     entry={'provider':'razorpay','payment_id':payment_id,'razorpay_order_id':session['razorpay_order_id'],
         'stage':stage,'amount_paise':amount,'method':pay.get('method'),'paid_at':n}
-    query={'order_id':order['order_id'],f'payment_plan.{stage}_paid_paise':0,'status':'pending_payment' if stage=='advance' else 'assigned'}
+    query={'order_id':order['order_id'],f'payment_plan.{stage}_paid_paise':0,'status':'pending_payment' if stage=='advance' else {'$in':['assigned','picked_up']}}
     if stage=='balance': query['pickup_signatures_completed_at']={'$exists':True}
     updates={f'payment_plan.{stage}_paid_paise':amount,'payment':entry,'updated_at':n}
     pushes={'payments':entry}

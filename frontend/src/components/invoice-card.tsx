@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import {useState} from "react";
 import {useAuth} from "@/src/auth";
 import {downloadInvoice} from "@/src/invoice-download";
@@ -10,7 +11,7 @@ import { useTheme } from "@/src/theme";
 import type { Catalog, Order, Quote } from "@/src/types";
 
 export function useCatalog() {
-  return useQuery({ queryKey: ["catalog"], queryFn: () => api<Catalog>("/catalog"), staleTime: Infinity });
+  return useQuery({ queryKey: ["catalog"], queryFn: () => api<Catalog>("/catalog"), staleTime: 30000, refetchInterval: 30000 });
 }
 
 export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Order; billTo?: { name: string; email: string; gstin?: string | null } }) {
@@ -24,7 +25,7 @@ export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Or
     if (!order?.invoice_no) return;
     setDownloading(true);
     try { toast(await downloadInvoice(order.order_id, order.invoice_no), "success"); }
-    catch (e: any) { toast(e.message, "error"); }
+    catch (e: any) { toast(getErrorMessage(e), "error"); }
     finally { setDownloading(false); }
   };
   const g = quote.gst;
@@ -35,7 +36,7 @@ export function InvoiceCard({ quote, order, billTo }: { quote: Quote; order?: Or
     <Card testID="invoice-card">
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View style={{ flex: 1 }}>
-          <Text testID="invoice-title" style={{ fontSize: 16, fontWeight: "800", color: colors.onSurface }}>{isTax ? "TAX INVOICE" : "QUOTATION (Proforma)"}</Text>
+          <Text testID="invoice-title" style={{ fontSize: 16, fontWeight: "800", color: colors.onSurface }}>{order?.is_test ? "TEST INVOICE — NOT VALID FOR TAX" : isTax ? "TAX INVOICE" : "QUOTATION (Proforma)"}</Text>
           {supplier ? (
             <>
               <Text style={[small, { color: colors.onSurfaceTertiary, fontWeight: "700", marginTop: 4 }]}>{supplier.name}</Text>
