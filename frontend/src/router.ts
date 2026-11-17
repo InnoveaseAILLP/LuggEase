@@ -4,6 +4,7 @@ import {StackActions, useNavigation, useRoute} from '@react-navigation/native';
 const routes: Record<string, string> = {
   '/(tabs)': 'Main', '/login': 'Login', '/onboarding': 'Onboarding',
   '/partner-register': 'PartnerRegister', '/deployment': 'Deployment',
+  '/admin-reports': 'AdminReports',
   '/book': 'Book', '/book/items': 'Items', '/book/review': 'Review',
 };
 function resolve(path: string): {name: string; params?: {id: string}} {

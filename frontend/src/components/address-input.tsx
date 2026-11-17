@@ -11,7 +11,7 @@ const newSession = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
 });
 export function AddressInput({value, onChangeText, onSelect, testID}: {
   value: string; onChangeText: (text: string) => void;
-  onSelect: (place: {address: string; state: string}) => void; testID: string;
+  onSelect: (place: {address: string; state: string; city?: string}) => void; testID: string;
 }) {
   const {colors} = useTheme();
   const [focused, setFocused] = useState(false);
@@ -42,7 +42,7 @@ export function AddressInput({value, onChangeText, onSelect, testID}: {
     const version = ++revision.current;
     setBusy(true); setError(''); setSuggestions([]);
     try {
-      const place = await api<{address: string; state: string}>(`/places/details/${encodeURIComponent(item.place_id)}?session_token=${session.current}`);
+      const place = await api<{address: string; state: string; city?: string}>(`/places/details/${encodeURIComponent(item.place_id)}?session_token=${session.current}`);
       if (revision.current !== version) return;
       selected.current = place.address;
       session.current = newSession();

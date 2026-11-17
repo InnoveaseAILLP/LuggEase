@@ -1,3 +1,4 @@
+import { AccountRole } from "./account-role";
 import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "react-native";
@@ -73,6 +74,7 @@ export function CustomerHome() {
         </Animated.View>
 
         <View style={{ padding: space.lg, gap: space.md }}>
+          <AccountRole/>
           <SectionTitle>What do you need?</SectionTitle>
           <View style={s.grid}>
             {cat?.categories.map((c, i) => (

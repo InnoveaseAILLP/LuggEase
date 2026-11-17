@@ -253,6 +253,8 @@ class QuoteRequest(BaseModel):
     drop_address: str = Field(min_length=3,max_length=500)
     pickup_state: str
     drop_state: str
+    pickup_city: Optional[str] = Field(default=None, max_length=100)
+    drop_city: Optional[str] = Field(default=None, max_length=100)
     distance_km: float = Field(gt=0, le=3000)
     items: List[ItemQty] = Field(min_length=1,max_length=100)
     service_type: Literal["shift_only", "pack_and_shift"]
@@ -500,8 +502,15 @@ def issue_jwt(user_id: str) -> str:
 
 async def firebase_profile(claims: dict, create: bool = False) -> dict:
     uid = claims["uid"]
+    # Only a signed, administrator-provisioned claim can grant this role.
+    admin_access = claims.get("luggeaseAdmin") is True and claims.get("email_verified") is True
     user = await db.users.find_one({"firebase_uid": uid}, {"_id": 0})
     if user:
+        if user.get("admin_claim_required") and not admin_access:
+            raise HTTPException(403, "Administrator access is no longer available. Contact support.")
+        if admin_access and (user.get("role") != "admin" or not user.get("admin_claim_required")):
+            await db.users.update_one({"firebase_uid": uid}, {"$set": {"role": "admin", "admin_claim_required": True}})
+            user.update({"role": "admin", "admin_claim_required": True})
         return user
     if not create:
         raise HTTPException(401, "Complete account setup first")
@@ -514,7 +523,8 @@ async def firebase_profile(claims: dict, create: bool = False) -> dict:
         raise HTTPException(409, "Existing account requires a verified identity migration. Contact support.")
     user = {"user_id": f"user_{uuid.uuid4().hex[:12]}", "firebase_uid": uid,
             "email": claims["email"].strip().lower(), "name": claims.get("name") or "",
-            "picture": claims.get("picture"), "role": None, "created_at": iso(now_utc())}
+            "picture": claims.get("picture"), "role": "admin" if admin_access else None,
+            "admin_claim_required": admin_access, "created_at": iso(now_utc())}
     try:
         await db.users.insert_one(user)
     except DuplicateKeyError:
@@ -631,7 +641,9 @@ async def set_role(body: RoleBody, user=Depends(current_user)):
         update["phone"] = body.phone
     if body.role == "partner" and not user.get("partner_status"):
         update["partner_status"] = "incomplete"
-    await db.users.update_one({"user_id": user["user_id"]}, {"$set": update})
+    result = await db.users.update_one({"user_id": user["user_id"], "role": user.get("role")}, {"$set": update})
+    if result.matched_count != 1:
+        raise HTTPException(409, "Account role changed. Refresh before continuing.")
     return public_user(await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0}))
 
 
@@ -735,6 +747,7 @@ async def create_order(body: QuoteRequest, user=Depends(require_role("customer")
         "customer_phone": user.get("phone"), "customer_gstin": (body.customer_gstin or "").strip().upper() or None,
         "pickup_address": body.pickup_address, "drop_address": body.drop_address,
         "pickup_state": body.pickup_state, "drop_state": body.drop_state,
+        "pickup_city": (body.pickup_city or "").strip() or None, "drop_city": (body.drop_city or "").strip() or None,
         "pickup_floor": body.pickup_floor, "drop_floor": body.drop_floor, "lift_available": body.lift_available,
         "move_date": body.move_date, "time_slot": body.time_slot, "extra_stops": q["extra_stops"],
         "service_category": body.service_category, "pickup_otp": f"{secrets.randbelow(10000):04d}",
@@ -1245,6 +1258,8 @@ async def payment_callback(request: Request):
 
 from logistics_workflow import install_workflow
 install_workflow(sys.modules[__name__])
+from admin_reports import install_admin_routes
+install_admin_routes(sys.modules[__name__])
 app.include_router(api)
 
 @app.middleware("http")

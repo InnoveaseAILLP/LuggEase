@@ -165,3 +165,8 @@ Full local-MongoDB backend run: 109 passed, 54 provider/environment tests skippe
 Published API revision luggease-api-00014-lzq (image 97f797e1-c9af-4e92-ada0-ffd229507c6f), Hosting 066fbeb3b2b310ab. Web 200, direct private API 403, tokenless gateway 401; gateway-only invoker policy unchanged. No production customer record or real payment was changed by the tests.
 
 Final configured backend suite, run from backend without overriding test selection or worker configuration: **110 passed, no skips**. This supersedes the broader invocation count for the configured suite; third-party mongomock deprecation warnings remain informational.
+
+
+## 2026-11-16 roles, administrator and consolidated reports
+
+119 configured backend tests passed both with the isolated Mongo substitute and real local MongoDB. 74 frontend tests passed. Role/report-focused follow-ups, typecheck, lint, web production build, Android signed Release and iOS Release builds passed. Scope and financial definitions: admin-access-and-reports.md. API revision luggease-api-00015-x2d / Hosting 154feff39fdcc68d. Admin signup remains unavailable; rmanojananth@innovease-ai.in was provisioned with a trusted claim, but its email was not fabricated as verified and no password was chosen. Private first-login and actual password-entry checks remain outside simulation evidence.

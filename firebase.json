@@ -3,7 +3,7 @@
     "providers": {
       "emailPassword": true,
       "googleSignIn": {
-        "oAuthBrandDisplayName": "Lugg-Ease",
+        "oAuthBrandDisplayName": "LuggEase",
         "supportEmail": "hello@innovease-ai.in",
         "authorizedRedirectUris": [
           "https://luggease-innovease.firebaseapp.com/__/auth/handler",
@@ -68,6 +68,13 @@
         ]
       }
     ],
-    "site": "luggease-innovease"
+    "site": "luggease-innovease",
+    "redirects": [
+      {
+        "source": "/Privacy.html",
+        "destination": "/privacy.html",
+        "type": 301
+      }
+    ]
   }
 }

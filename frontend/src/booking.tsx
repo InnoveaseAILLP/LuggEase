@@ -4,6 +4,8 @@ import { createContext, ReactNode, useContext, useEffect, useState } from "react
 export type Draft = {
   pickup_address: string;
   drop_address: string;
+  pickup_city: string;
+  drop_city: string;
   pickup_state: string;
   drop_state: string;
   distance_km: string;
@@ -27,6 +29,8 @@ export type Draft = {
 const initial: Draft = {
   pickup_address: "",
   drop_address: "",
+  pickup_city: "",
+  drop_city: "",
   pickup_state: "Karnataka",
   drop_state: "Karnataka",
   distance_km: "",
@@ -69,6 +73,8 @@ export function toPayload(d: Draft) {
   return {
     pickup_address: d.pickup_address.trim(),
     drop_address: d.drop_address.trim(),
+    pickup_city: (d.pickup_city || "").trim() || null,
+    drop_city: (d.drop_city || "").trim() || null,
     pickup_state: d.pickup_state,
     drop_state: d.drop_state,
     distance_km: parseFloat(d.distance_km) || 0,

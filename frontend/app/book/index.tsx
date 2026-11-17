@@ -53,7 +53,7 @@ export default function BookLocations() {
     }
   };
 
-  const valid = draft.pickup_address.trim().length >= 3 && draft.drop_address.trim().length >= 3 && parseFloat(draft.distance_km) > 0;
+  const valid = draft.pickup_address.trim().length >= 3 && draft.drop_address.trim().length >= 3 && draft.pickup_city.trim().length>=2 && draft.drop_city.trim().length>=2 && parseFloat(draft.distance_km) > 0;
 
   return (
     <View style={s.root}>
@@ -61,7 +61,8 @@ export default function BookLocations() {
       <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ gap: space.md }}>
           <View style={s.locHead}><Icon name="circle-slice-8" size={18} color={colors.success} /><Text style={s.locTitle}>Pickup</Text></View>
-          <AddressInput testID="pickup-address-input" value={draft.pickup_address} onChangeText={(t) => update({ pickup_address: t })} onSelect={(p) => update({ pickup_address: p.address, ...(p.state ? { pickup_state: p.state } : {}) })} />
+          <AddressInput testID="pickup-address-input" value={draft.pickup_address} onChangeText={(t) => update({ pickup_address: t })} onSelect={(p) => update({ pickup_address: p.address, pickup_city:p.city||"", ...(p.state ? { pickup_state: p.state } : {}) })} />
+          <Input label="Pickup city" testID="pickup-city-input" value={draft.pickup_city} onChangeText={t=>update({pickup_city:t})} placeholder="City / town" maxLength={100}/>
           <StateField label="Pickup state" value={draft.pickup_state} onPress={() => setPicker("pickup_state")} testID="pickup-state-select" />
           <View style={s.floorRow}>
             <Text style={s.floorLabel}>Floor</Text>
@@ -71,7 +72,8 @@ export default function BookLocations() {
 
         <Card style={{ gap: space.md }}>
           <View style={s.locHead}><Icon name="map-marker" size={18} color={colors.brandPrimary} /><Text style={s.locTitle}>Drop</Text></View>
-          <AddressInput testID="drop-address-input" value={draft.drop_address} onChangeText={(t) => update({ drop_address: t })} onSelect={(p) => update({ drop_address: p.address, ...(p.state ? { drop_state: p.state } : {}) })} />
+          <AddressInput testID="drop-address-input" value={draft.drop_address} onChangeText={(t) => update({ drop_address: t })} onSelect={(p) => update({ drop_address: p.address, drop_city:p.city||"", ...(p.state ? { drop_state: p.state } : {}) })} />
+          <Input label="Drop city" testID="drop-city-input" value={draft.drop_city} onChangeText={t=>update({drop_city:t})} placeholder="City / town" maxLength={100}/>
           <StateField label="Drop state" value={draft.drop_state} onPress={() => setPicker("drop_state")} testID="drop-state-select" />
           <View style={s.floorRow}>
             <Text style={s.floorLabel}>Floor</Text>

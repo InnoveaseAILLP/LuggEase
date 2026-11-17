@@ -173,3 +173,19 @@ The customer-provided agreement was reformatted as a separate unsigned copy, ret
 - Gateway renderer: generated production specification matches existing issuer/audience/backend values; invalid identifiers and non-Cloud-Run/unsafe URLs are rejected.
 
 Execution and scope are recorded in review-remediation-2026-11-16.md.
+
+### Roles, private administrator and reports (2026-11-16)
+
+| Case | Expected result |
+| --- | --- |
+| Login role choices | Accessible Customer/Delivery Partner/Admin controls; controls disabled during sign-in; preference grants no role |
+| Admin setup | Nominated email prefilled; no Admin signup; secure password-link action uses entered email without handling a password |
+| New partner | Login preference preselects post-verification confirmation; only customer/partner can be selected; approval still required |
+| Existing role mismatch | API role wins and is explained on Home |
+| Forged or absent admin claim | Matching email alone grants no Admin role; removed required claim denies access |
+| Concurrent role changes | Exactly one initial choice wins; the other returns conflict; stored role cannot be overwritten |
+| Account directory | Non-admin denied; escaped search, role filter and pagination; no bank/identity/password fields |
+| Report finance | Invoice and actual payment dates differ correctly; duplicate payment references deduplicated; GST/taxable/invoice/cash/refund-due/settlement meanings remain separate |
+| Report dates and geography | India midnight inclusive start/exclusive end; invalid/oversized date ranges rejected; same city in two states stays separate; missing historical city is Unspecified |
+| Reconciliation / volume | Unallocated captures identified separately; over-limit report returns error, not a partial total |
+| CSV / report UI | Selected report exports all records; previews disclose 50-row cap; formula injection and quoting handled; customer cannot enable admin queries |

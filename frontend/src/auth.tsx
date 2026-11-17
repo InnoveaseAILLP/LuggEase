@@ -8,6 +8,7 @@ import {validateCredentials} from '@/src/auth-validation';
 
 type AuthValue = {
   user: User | null; loading: boolean;
+  entryRole: Role | null; setEntryRole: (role: Role | null) => void;
   loginEmail: (email: string, password: string) => Promise<void>;
   registerEmail: (name: string, email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
@@ -22,6 +23,8 @@ setTokenProvider(() => identity.token());
 export function AuthProvider({children}: {children: ReactNode}) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  // A login preference preselects onboarding; only the API profile grants access.
+  const [entryRole, setEntryRole] = useState<Role | null>(null);
   useEffect(() => {
     let active = true;
     let version = 0;
@@ -67,6 +70,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
   async function logout() {
     await identity.logout();
     queryClient.clear();
+    setEntryRole(null);
     if (!identity.current()) setUser(null);
   }
   async function setRole(role: Exclude<Role, 'admin'>, phone?: string) {
@@ -74,6 +78,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
     const profile = await api<User>('/auth/role', {body:{role, phone:phone || undefined}});
     if (uid && identity.current()?.uid === uid) setUser(profile);
   }
-  return <AuthCtx.Provider value={{user,loading,loginEmail,registerEmail,loginGoogle,resetPassword,resendVerification:identity.verify,completeVerification,setRole,setUser,refresh,logout}}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{user,loading,entryRole,setEntryRole,loginEmail,registerEmail,loginGoogle,resetPassword,resendVerification:identity.verify,completeVerification,setRole,setUser,refresh,logout}}>{children}</AuthCtx.Provider>;
 }
 export function useAuth() { const value = useContext(AuthCtx); if (!value) throw new Error('useAuth outside provider'); return value; }

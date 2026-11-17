@@ -1,3 +1,5 @@
+import {useRouter} from "../router";
+import { AccountRole } from "./account-role";
 import { BrandIcon } from "@/src/components/brand-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -15,6 +17,7 @@ type Stats = { paid_orders: number; open_orders: number; gmv: number; commission
 
 export function AdminHome() {
   const s = useStyles();
+  const router=useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const toast = useToast();
@@ -40,11 +43,11 @@ export function AdminHome() {
   };
 
   const tiles = [
-    { k: "Paid orders", v: String(stats.data?.paid_orders ?? 0), id: "paid" },
+    { k: "Bookings with payment", v: String(stats.data?.paid_orders ?? 0), id: "paid" },
     { k: "Awaiting partner", v: String(stats.data?.open_orders ?? 0), id: "open" },
-    { k: "GMV (incl. GST)", v: inr(stats.data?.gmv ?? 0, 0), id: "gmv" },
-    { k: "Commission (5%)", v: inr(stats.data?.commission_earned ?? 0, 0), id: "commission" },
-    { k: "GST collected", v: inr(stats.data?.gst_collected ?? 0, 0), id: "gst" },
+    { k: "Booking value (GST + tips)", v: inr(stats.data?.gmv ?? 0, 0), id: "gmv" },
+    { k: "Quoted commission (5%)", v: inr(stats.data?.commission_earned ?? 0, 0), id: "commission" },
+    { k: "GST invoiced", v: inr(stats.data?.gst_collected ?? 0, 0), id: "gst" },
     { k: "Pending partners", v: String(stats.data?.pending_partners ?? 0), id: "pending" },
   ];
 
@@ -55,6 +58,8 @@ export function AdminHome() {
         contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.lg, paddingBottom: bottomChrome + space.xl, gap: space.md }}
       >
         <View style={{flexDirection: "row", alignItems: "center", gap: space.md}}><BrandIcon/><Text style={s.h1}>Admin dashboard</Text></View>
+        <AccountRole/>
+        <Button title="Reports and account directory" testID="admin-reports-button" onPress={()=>router.push("/admin-reports")}/>
         <View style={s.grid}>
           {tiles.map((t) => (
             <Card key={t.id} style={s.tile}>

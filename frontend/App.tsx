@@ -18,6 +18,7 @@ import Login from './app/login';
 import Onboarding from './app/onboarding';
 import PartnerRegister from './app/partner-register';
 import Deployment from './app/deployment';
+import AdminReports from './app/admin-reports';
 import Home from './app/(tabs)/index';
 import Orders from './app/(tabs)/orders';
 import Profile from './app/(tabs)/profile';
@@ -42,6 +43,7 @@ function Navigation() {
   return <NavigationContainer><Stack.Navigator key={`${user?.user_id || 'guest'}:${gate}`} screenOptions={{headerShown:false}}>
     {gate === 'guest' ? <Stack.Screen name="Login" component={Login}/> : gate === 'onboarding' ? <Stack.Screen name="Onboarding" component={Onboarding}/> : gate === 'partner' ? <Stack.Screen name="PartnerRegister" component={PartnerRegister}/> : <>
       <Stack.Screen name="Main" component={Main}/>
+      {user?.role==='admin'&&<Stack.Screen name="AdminReports" component={AdminReports}/>}
       <Stack.Screen name="PartnerRegister" component={PartnerRegister}/>
       {user?.role === 'customer' && <><Stack.Screen name="Book" component={Book}/><Stack.Screen name="Items" component={Items}/><Stack.Screen name="Review" component={Review}/></>}
       <Stack.Screen name="Order" component={Order}/>

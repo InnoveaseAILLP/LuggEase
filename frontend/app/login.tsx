@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth";
 import { Button, Input, radius, space } from "@/src/components/ui";
 import { BrandIcon } from "@/src/components/brand-icon";
+import { LoginRoleSelector } from "@/src/components/login-role-selector";
 import { makeStyles, useTheme } from "@/src/theme";
 
 const HERO = "https://images.unsplash.com/photo-1586781383963-8e66f88077ec?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
@@ -17,7 +18,8 @@ export default function Login() {
   const s = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { loginEmail, registerEmail, loginGoogle, resetPassword, resendVerification, completeVerification, logout } = useAuth();
+  const { entryRole, setEntryRole, loginEmail, registerEmail, loginGoogle, resetPassword, resendVerification, completeVerification, logout } = useAuth();
+  const role=entryRole??"customer";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,6 +39,7 @@ export default function Login() {
       return;
     }
     setBusy(true);
+    setEntryRole(role);
     try {
       if (mode === "login") await loginEmail(email.trim(), password);
       else { await registerEmail(name.trim(), email.trim(), password); setVerification(true); setMessage("Verification email sent. Check your inbox and spam folder."); }
@@ -51,6 +54,7 @@ export default function Login() {
   const google = async () => {
     if (busy || gBusy) return;
     setGBusy(true);
+    setEntryRole(role);
     setError("");
     try {
       await loginGoogle();
@@ -81,9 +85,10 @@ export default function Login() {
         </View>
 
         <View style={s.sheet}>
+          {!verification&&<LoginRoleSelector role={role} disabled={busy||gBusy} onChange={value=>{setEntryRole(value);if(value==='admin'){setMode('login');setEmail('rmanojananth@innovease-ai.in');setPassword('');}setError('');setMessage('');}}/>}
           <View style={s.segment}>
             {(["login", "register"] as const).map((m) => (
-              <Pressable accessibilityRole="button" key={m} testID={`auth-mode-${m}`} disabled={busy || gBusy} onPress={() => { setMode(m); setError(""); setMessage(""); }} style={[s.segBtn, mode === m && s.segActive]}>
+              <Pressable accessibilityRole="button" key={m} testID={`auth-mode-${m}`} disabled={busy || gBusy || (m==='register'&&role==='admin')} accessibilityState={{disabled:busy||gBusy||(m==='register'&&role==='admin')}} onPress={() => { setMode(m); setError(""); setMessage(""); }} style={[s.segBtn, mode === m && s.segActive, m==='register'&&role==='admin'&&{opacity:0.4}]}>
                 <Text style={[s.segText, mode === m && { color: colors.onSurface }]}>{m === "login" ? "Sign in" : "Create account"}</Text>
               </Pressable>
             ))}
@@ -104,7 +109,7 @@ export default function Login() {
           </View>}
           {!!message && <Text accessibilityRole="alert">{message}</Text>}
           {verification && !!error && <Text accessibilityRole="alert" style={{color:colors.error}}>{error}</Text>}
-          {!verification && <Button title="Forgot password?" variant="outline" disabled={busy || gBusy} onPress={() => run(async () => { await resetPassword(email); setMessage("If an account exists, a password reset link has been sent. Check your inbox and spam folder."); })} />}
+          {!verification && <Button title={role==='admin'?"Set / reset admin password":"Forgot password?"} variant="outline" disabled={busy || gBusy} onPress={() => run(async () => { await resetPassword(email); setMessage("If an account exists, a secure password link has been sent. Choose your password using that link privately. Check your inbox and spam folder."); })} />}
 
           {!verification && <><View style={s.orRow}><View style={s.line} /><Text style={s.or}>or</Text><View style={s.line} /></View>
           <Button testID="google-login-button" variant="outline" icon="google" title="Continue with Google" onPress={google} loading={gBusy} disabled={busy} /></>}
