@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-17",
+  "tests": 156,
+  "suites": 28,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "android_build": "passed",
+  "ios_build": "passed",
+  "hosting_version": "107070f748332f4f",
+  "physical_gps_receipt": "User reported success; server and refreshed partner view still show no received location",
+  "accuracy_limit_changed": false,
+  "simulated_production_location": false,
+  "server_request_check": "No tracking POST requests found in Cloud Run request logs for the preceding two hours; GET requests return 200"
+}

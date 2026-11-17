@@ -1,10 +1,10 @@
 # LuggEase roles, administrator setup and reports
 
-Updated 16 November 2026 (India time).
+Updated 17 November 2026 (India time).
 
 ## Roles and login
 
-The login screen offers Customer, Delivery Partner and Admin. This is a login preference, not a permission grant. Existing accounts open the saved role returned by the API; a visible Home label explains any difference from the requested role. Profile also shows the saved role.
+The public login screen offers only Customer and Delivery Partner. Administrator sign-in is available at the separate, unlisted URL https://luggease.innovease-ai.in/staff-access/le-486fcbf0f847745b0313870027057766. No administrator link, role choice or prefilled administrator email appears on public login. This is a login preference, not a permission grant. Existing accounts open the saved role returned by the API; a visible Home label explains any difference from the requested role. Profile also shows the saved role.
 
 New customers and partners explicitly confirm their role after email verification. A partner's vehicle/profile must still be approved before jobs are available. Role selection is atomic and cannot overwrite a concurrent selection. There is no self-service Admin signup, promotion or role-switch control.
 
@@ -12,7 +12,7 @@ The owner requested administrator **rmanojananth@innovease-ai.in**. A new identi
 
 To choose a password:
 
-1. Open https://luggease.innovease-ai.in and select **Admin**. The requested email is prefilled.
+1. Open https://luggease.innovease-ai.in/staff-access/le-486fcbf0f847745b0313870027057766. The requested email is prefilled and fixed for this administrator entry.
 2. Press **Set / reset admin password** to request the secure email link yourself.
 3. Open the email from **LuggEase <luggease@innovease-ai.in>** and choose your password privately.
 4. Return and sign in. If asked to verify email, use **Resend verification email**, open that link and press **Continue after verification**. Google sign-in with the nominated account is also available.
@@ -62,3 +62,19 @@ Backend configured suite: 119 passed, including against real isolated MongoDB. F
 Live browser checks confirmed Customer / Delivery Partner / Admin login controls, partner signup fields, disabled Admin signup, the nominated administrator email/password-link control, and the saved Customer role on an existing customer Home. A web checked-state accessibility defect was found and fixed, then verified on the final deployment (Customer and Admin selection correctly announced). No administrator password was entered, no setup email was requested by the agent, and no claim is made that the new administrator's private first login or report exports were tested on a physical phone.
 
 The public policy URLs and capitalized privacy redirect return the branded documents. Google branding settings and all four email sender names/addresses were verified. Actual email delivery was not tested. Test fixtures cleaned their unique local databases; no customer order or payment was changed by these tests.
+
+
+## Separate administrator entry — 17 November 2026
+
+The unlisted administrator URL is a web UI entry, not an authorization mechanism. Verified Firebase identity, the signed administrator claim and API authorization remain mandatory. A signed-in customer, partner or account without a role sees an administrator-account barrier at this entry, rather than customer onboarding or reports. The public/native login ignores stale Admin preferences and exposes only Customer/Delivery Partner choices. Existing administrator permissions and reports were preserved.
+
+The entry has no public navigation link, no signup, an exact-path check, no-index/no-follow/no-archive response headers, a no-referrer policy and no-store caching. It is not placed in robots.txt or a public sitemap. Direct visits and refreshes use the existing SPA Hosting rewrite.
+
+
+## Separate administrator entry release — 17 November 2026
+
+Published Hosting version sites/luggease-innovease/versions/6ca15eb5128056fe. Public login was visually verified with only Customer and Delivery Partner, no Admin control and no administrator email. The dedicated entry was visually verified with the nominated email fixed, password sign-in and set/reset-password action, and no signup. A live administrator credential attempt was not certified successful; password setup and credential entry remain private user actions.
+
+78 frontend tests passed across 18 suites, including exact-path matching, stale preference isolation, native/public behavior, private form setup and non-admin account barrier checks. Typecheck, lint, web production build, signed Android arm64 Release and iOS Release builds passed. The backend and its assigned roles were not changed. Direct private API rejection remains 403, and tokenless gateway access remains 401.
+
+Both dedicated pathname variants returned 200 with X-Robots-Tag noindex/nofollow/noarchive, Cache-Control no-store and Referrer-Policy no-referrer. Root, privacy and terms pages remained available. Deployment used the official Firebase Hosting REST API with the renewed authorized account after the CLI's stored credentials/token handling failed. Reference: https://firebase.google.com/docs/hosting/api-deploy . No additional service-account key or public API access was created.

@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useRouter } from "@/src/router";
 import { useState } from "react";
 import { FlatList, Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
@@ -47,7 +48,7 @@ export default function BookLocations() {
       update({ distance_km: String(r.distance_km) });
       toast(`Google Maps route: ${r.distance_km} km`, "success");
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setCalc(false);
     }

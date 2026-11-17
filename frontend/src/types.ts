@@ -89,6 +89,7 @@ export type Quote = {
 export type OrderStatus = "pending_payment" | "paid" | "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled";
 
 export type Order = {
+  is_test?:boolean;
   payment_plan?: {total_paise:number;advance_paise:number;balance_paise:number;advance_paid_paise:number;balance_paid_paise:number;paid_paise:number;balance_due:string};
   payments?: {payment_id:string;razorpay_order_id:string;stage:string;amount_paise:number;paid_at:string}[];
   delivery_estimate?: DeliveryEstimate;

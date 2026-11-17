@@ -45,3 +45,35 @@ test('delivered customer can submit five stars with overall delivery comments',a
  fireEvent.press(view.getByTestId('rating-submit-button'));
  await waitFor(()=>expect(api).toHaveBeenCalledWith('/orders/QA-ORDER/rate',{method:'POST',body:{stars:5,comment:'TEST - careful handling, useful tracking and timely delivery.'}}));
 });
+test('assigned partner must capture signatures before pickup and collect balance before transit',async()=>{
+ mockOrder={...mockOrder,status:'assigned',requires_pickup_signatures:true,payment_plan:{total_paise:191600,advance_paise:95800,balance_paise:95800,paid_paise:95800,balance_paid_paise:0}};
+ const v=render(<OrderDetail/>);
+ fireEvent.changeText(v.getByTestId('pickup-otp-input'),'1234');
+ fireEvent.press(v.getByTestId('order-next-status-button'));expect(api).not.toHaveBeenCalled();
+ mockOrder={...mockOrder,pickup_signatures_completed_at:'2026-11-17T10:00:00Z'};v.rerender(<OrderDetail/>);
+ fireEvent.press(v.getByTestId('order-next-status-button'));
+ await waitFor(()=>expect(api).toHaveBeenCalledWith('/orders/QA-ORDER/status',expect.objectContaining({body:{status:'picked_up',otp:'1234'}})));
+ (api as jest.Mock).mockClear();mockOrder={...mockOrder,status:'picked_up'};v.rerender(<OrderDetail/>);
+ fireEvent.press(v.getByTestId('order-next-status-button'));expect(api).not.toHaveBeenCalled();
+ mockOrder={...mockOrder,payment_plan:{...mockOrder.payment_plan,paid_paise:191600,balance_paid_paise:95800}};v.rerender(<OrderDetail/>);
+ fireEvent.press(v.getByTestId('order-next-status-button'));
+ await waitFor(()=>expect(api).toHaveBeenCalledWith('/orders/QA-ORDER/status',expect.objectContaining({body:{status:'in_transit',otp:undefined}})));
+});
+test.each(['customer','admin'])('%s cannot advance assigned delivery statuses',role=>{
+ mockRole=role;mockOrder={...mockOrder,status:'assigned'};
+ const v=render(<OrderDetail/>);expect(v.queryByTestId('order-next-status-button')).toBeNull();
+});
+
+test('test pickup balance is explicit, records no money and unlocks Start trip after refresh',async()=>{
+ mockOrder={...mockOrder,is_test:true,status:'picked_up',pickup_signatures_completed_at:'2026-11-17T10:00:00Z',payment_plan:{total_paise:191600,balance_paise:95800,paid_paise:95800}};
+ const v=render(<OrderDetail/>);
+ expect(v.getByTestId('order-next-status-button').props.accessibilityState.disabled).toBe(true);
+ fireEvent.press(v.getByTestId('simulate-pickup-balance-button'));
+ await waitFor(()=>expect(api).toHaveBeenCalledWith('/orders/QA-ORDER/simulate-pickup-balance',{method:'POST',body:{confirm_no_money_received:true}}));
+ mockOrder={...mockOrder,payment_plan:{...mockOrder.payment_plan,paid_paise:191600,balance_paid_paise:95800}};v.rerender(<OrderDetail/>);
+ expect(v.getByTestId('order-next-status-button').props.accessibilityState.disabled).toBe(false);
+});
+test('real orders never show a simulated balance action',()=>{
+ mockOrder={...mockOrder,status:'picked_up',pickup_signatures_completed_at:'2026-11-17T10:00:00Z',payment_plan:{total_paise:191600,balance_paise:95800,paid_paise:95800}};
+ const v=render(<OrderDetail/>);expect(v.queryByTestId('simulate-pickup-balance-button')).toBeNull();
+});

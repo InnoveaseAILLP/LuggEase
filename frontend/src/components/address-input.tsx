@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, Text, View} from 'react-native';
 import {api} from '@/src/api';
@@ -33,7 +34,7 @@ export function AddressInput({value, onChangeText, onSelect, testID}: {
           setSuggestions(result.suggestions);
           if (!result.suggestions.length) setError('No matching places. Try an area or city, or enter the address manually.');
         }
-      } catch (e: any) { if (revision.current === version) setError(e.message); }
+      } catch (e: any) { if (revision.current === version) setError(getErrorMessage(e)); }
       finally { if (revision.current === version) setBusy(false); }
     }, 350);
     return () => { clearTimeout(timer); ++revision.current; };
@@ -48,7 +49,7 @@ export function AddressInput({value, onChangeText, onSelect, testID}: {
       session.current = newSession();
       onSelect(place);
       setFocused(false);
-    } catch (e: any) { if (revision.current === version) setError(e.message); }
+    } catch (e: any) { if (revision.current === version) setError(getErrorMessage(e)); }
     finally { if (revision.current === version) setBusy(false); }
   };
   return <View style={{gap: space.sm}}>

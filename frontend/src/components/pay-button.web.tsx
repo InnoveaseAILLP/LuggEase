@@ -1,3 +1,6 @@
+import {Text} from 'react-native';
+import {loadCheckout} from '@/src/razorpay-checkout.web';
+import {getErrorMessage, PAYMENT_REVIEW} from '@/src/errors';
 import { useEffect, useState } from "react";
 
 import { api } from "@/src/api";
@@ -10,21 +13,21 @@ declare global {
 }
 
 export function PayButton({ orderId, amountLabel, onDone, stage, disabled=false }: { orderId: string; amountLabel: string; onDone: () => void; stage?:"advance"|"balance";disabled?:boolean }) {
-  const [ready, setReady] = useState(typeof window !== "undefined" && !!window.Razorpay);
+  const [checkoutError, setCheckoutError] = useState("");
   const [busy, setBusy] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    if (window.Razorpay) return;
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => setReady(true);
-    document.body.appendChild(s);
-  }, []);
+    if(disabled)return;
+    let active=true;
+    loadCheckout().catch(error=>{if(active)setCheckoutError(getErrorMessage(error));});
+    return()=>{active=false;};
+  }, [disabled]);
 
   const start = async () => {
-    setBusy(true);
+    setBusy(true);setCheckoutError("");
     try {
+      await loadCheckout();
       const o = await api<any>("/payments/create", { body: { order_id: orderId,stage } });
       const rzp = new window.Razorpay({
         key: o.key_id, amount: o.amount, currency: "INR", name: "LuggEase", description: `${o.stage??"Order"} payment · ${o.order_id}`,
@@ -35,20 +38,21 @@ export function PayButton({ orderId, amountLabel, onDone, stage, disabled=false 
             await api("/payments/verify", { body: resp });
             toast("Payment successful", "success");
           } catch (e: any) {
-            toast(e.message, "error");
+            toast(getErrorMessage(e, PAYMENT_REVIEW), "error");
           }
           setBusy(false);
           onDone();
         },
         modal: { ondismiss: () => setBusy(false) },
       });
-      rzp.on("payment.failed", () => toast("Payment failed. Please try again.", "error"));
+      rzp.on("payment.failed", () => toast("Payment was not completed. Refresh payment status before trying again. Contact support if money was deducted.", "error"));
       rzp.open();
     } catch (e: any) {
-      toast(e.message, "error");
+      setCheckoutError(getErrorMessage(e));
+      toast(getErrorMessage(e), "error");
       setBusy(false);
     }
   };
 
-  return <Button testID="pay-now-button" title={`${stage==="advance"?"Pay 50% booking advance":stage==="balance"?"Pay 50% pickup balance":"Pay invoice"} · ${amountLabel}`} icon="shield-lock-outline" disabled={!ready||disabled} loading={busy} onPress={start} />;
+  return <><Button testID="pay-now-button" title={`${stage==="advance"?"Pay 50% booking advance":stage==="balance"?"Pay 50% pickup balance":"Pay invoice"} · ${amountLabel}`} icon="shield-lock-outline" disabled={disabled} loading={busy} onPress={start} />{checkoutError?<Text accessibilityRole="alert">{checkoutError}</Text>:null}</>;
 }

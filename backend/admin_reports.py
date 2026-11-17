@@ -52,6 +52,7 @@ def build_report(orders, low, high):
             'amount_paise':amount,'order_status':order['status'],
             'pickup_city':order.get('pickup_city') or 'Unspecified','pickup_state':order.get('pickup_state') or 'Unspecified'})
     for order in orders:
+        if order.get("is_test"):continue
         q=order.get('quote') or {};status=order['status'];traffic=order.get('traffic_surcharge') or {}
         if within(order.get('created_at')):
             summary['orders']+=1;statuses[status]+=1;services[order.get('service_category') or 'Unspecified']+=1
@@ -135,7 +136,7 @@ def install_admin_routes(ctx):
     async def reports(start_date:Optional[str]=None,end_date:Optional[str]=None,user=Depends(ctx.require_role('admin'))):
         first,last,low,high=report_window(start_date,end_date,ctx.now_utc())
         bounds={'$gte':ctx.iso(low),'$lt':ctx.iso(high)}
-        query={'$or':[{field:bounds} for field in ('created_at','invoice_date','payment.paid_at','traffic_surcharge.accepted_at','traffic_surcharge.paid_at','settlement.settled_at')]+
+        query={'is_test':{'$ne':True},'$or':[{field:bounds} for field in ('created_at','invoice_date','payment.paid_at','traffic_surcharge.accepted_at','traffic_surcharge.paid_at','settlement.settled_at')]+
             [{'payments':{'$elemMatch':{'paid_at':bounds}}},{'timeline':{'$elemMatch':{'status':'cancelled','at':bounds}}}]}
         projection={key:1 for key in ('order_id','status','quote','pickup_city','drop_city','pickup_state','drop_state','created_at','invoice_no','invoice_date',
             'payments','payment','amount_paise','payment_plan','traffic_surcharge','timeline','refund_amount','settlement','service_category')}

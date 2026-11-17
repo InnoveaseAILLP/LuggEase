@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useRouter } from "@/src/router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -56,7 +57,7 @@ export default function PartnerRegister() {
       toast("Submitted for admin approval", "success");
       if (hasProfile) router.replace("/(tabs)");
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setBusy(false);
     }
@@ -69,7 +70,7 @@ export default function PartnerRegister() {
         <SectionTitle>Personal</SectionTitle>
         <Input testID="partner-name-input" label="Full name *" value={f.full_name} onChangeText={set("full_name")} />
         <Input testID="partner-phone-input" label="Mobile number *" value={f.phone} onChangeText={set("phone")} keyboardType="phone-pad" maxLength={13} />
-        <Input testID="partner-city-input" label="Operating city *" value={f.city} onChangeText={set("city")} placeholder="Bengaluru" />
+        <Input testID="partner-city-input" label="Operating city *" value={f.city} onChangeText={set("city")} />
         <Input testID="partner-id-input" label="PAN / Aadhaar (last 4) *" value={f.id_proof} onChangeText={set("id_proof")} autoCapitalize="characters" />
 
         <SectionTitle>Vehicle</SectionTitle>
@@ -85,11 +86,12 @@ export default function PartnerRegister() {
             );
           })}
         </ScrollView>
-        <Input testID="partner-vehicle-number-input" label="Vehicle registration no. *" value={f.vehicle_number} onChangeText={set("vehicle_number")} autoCapitalize="characters" placeholder="KA01AB1234" />
+        <Input testID="partner-vehicle-number-input" label="Vehicle registration no. *" value={f.vehicle_number} onChangeText={set("vehicle_number")} autoCapitalize="characters" />
+        <Text style={s.fieldHint}>CAPS Letter without any spaces</Text>
         <Input testID="partner-license-input" label="Driving licence no. *" value={f.license_number} onChangeText={set("license_number")} autoCapitalize="characters" />
 
         <SectionTitle>Payouts</SectionTitle>
-        <Input testID="partner-upi-input" label="UPI ID (for payouts)" value={f.upi_id} onChangeText={set("upi_id")} autoCapitalize="none" placeholder="name@upi" />
+        <Input testID="partner-upi-input" label="UPI ID (for payouts)" value={f.upi_id} onChangeText={set("upi_id")} autoCapitalize="none" />
         <Input testID="partner-gstin-input" label="GSTIN (if registered)" value={f.gstin} onChangeText={set("gstin")} autoCapitalize="characters" />
 
         <SectionTitle>Bank account for settlement</SectionTitle>
@@ -98,8 +100,8 @@ export default function PartnerRegister() {
         <Pressable testID="partner-bank-show-toggle" onPress={() => setShowAcc((v) => !v)} style={{ alignSelf: "flex-start", paddingVertical: space.xs }}>
           <Text style={{ color: colors.brandPrimary, fontWeight: "700", fontSize: 13 }}>{showAcc ? "Hide" : "Show"} account number</Text>
         </Pressable>
-        <Input testID="partner-bank-ifsc-input" label="IFSC code" value={f.bank_ifsc} onChangeText={(t) => set("bank_ifsc")(t.toUpperCase())} autoCapitalize="characters" maxLength={11} placeholder="SBIN0001234" />
-        <Input testID="partner-bank-name-input" label="Bank name" value={f.bank_name} onChangeText={set("bank_name")} placeholder="State Bank of India" />
+        <Input testID="partner-bank-ifsc-input" label="IFSC code" value={f.bank_ifsc} onChangeText={(t) => set("bank_ifsc")(t.toUpperCase())} autoCapitalize="characters" maxLength={11} />
+        <Input testID="partner-bank-name-input" label="Bank name" value={f.bank_name} onChangeText={set("bank_name")} />
 
         <View style={s.note}>
           <Icon name="information-outline" size={18} color={colors.onBrandTertiary} />
@@ -121,6 +123,7 @@ const useStyles = makeStyles((c) => ({
   veh: { width: 120, flexShrink: 0, padding: space.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.surfaceSecondary, gap: 4 },
   vehName: { fontSize: 13, fontWeight: "700", color: c.onSurface },
   vehCap: { fontSize: 11, color: c.muted },
+  fieldHint: { fontSize: 12, color: c.onSurfaceTertiary, marginTop: -space.sm },
   note: { flexDirection: "row", gap: space.sm, backgroundColor: c.brandTertiary, padding: space.md, borderRadius: radius.md },
   noteText: { flex: 1, fontSize: 13, color: c.onSurfaceTertiary, lineHeight: 19 },
 }));

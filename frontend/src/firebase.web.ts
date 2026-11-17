@@ -1,3 +1,4 @@
+import {asUserFacingError} from '@/src/errors';
 import {getApp, getApps, initializeApp} from 'firebase/app';
 import {initializeAuth, browserPopupRedirectResolver, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification, sendPasswordResetEmail, signOut, reload, getIdToken, GoogleAuthProvider, signInWithPopup, browserSessionPersistence} from 'firebase/auth';
 import Config from 'react-native-config';
@@ -14,10 +15,7 @@ export const identity = {
   google() {
     // Open from the click's user activation; do not await storage or network work first.
     return signInWithPopup(auth, new GoogleAuthProvider()).then(() => undefined).catch((error: {code?: string}) => {
-      if (error.code === 'auth/popup-blocked') throw new Error('Allow pop-ups for this website, then try Google sign-in again.');
-      if (error.code === 'auth/unauthorized-domain') throw new Error('Google sign-in is not enabled for this website address yet.');
-      if (error.code === 'auth/popup-closed-by-user') throw new Error('Google sign-in was cancelled. Please try again.');
-      throw error;
+      throw asUserFacingError(error, 'Google sign-in is temporarily unavailable. Use email sign-in or contact support.');
     });
   },
   async token(force = false) { return auth.currentUser ? getIdToken(auth.currentUser, force) : null; },

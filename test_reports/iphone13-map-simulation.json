@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-17",
+  "device": "physical connected iPhone 13 Pro Max",
+  "fixture_order": "SIM-MAP-IPHONE",
+  "actual_owner_order": "LE261116A46516 remains Finding partner with simulated booking advance",
+  "screens": [
+    "Customer My bookings / Orders list",
+    "Delivery Partner My jobs / Orders list"
+  ],
+  "map_provider": "real Google Maps inside the existing native ShipmentMap WebView",
+  "data_source": "synthetic public Coimbatore railway station to airport route",
+  "customer_movement_observed": {
+    "before": [
+      11.01,
+      76.99
+    ],
+    "after": [
+      11.016,
+      77.005
+    ]
+  },
+  "partner_movement_observed": "marker and polyline advanced to the synthetic airport endpoint",
+  "role_controls_observed": "Customer has map visibility only; Partner has location sharing controls",
+  "production_api_requests": "blocked by simulation fixtures",
+  "real_gps_uploaded": false,
+  "authentication_scope": "fixture roles, not a real partner account login or cross-device API transport test",
+  "screenshots": [
+    "docs/screenshots/iphone13-customer-map-simulation.jpg",
+    "docs/screenshots/iphone13-customer-map-simulation-moved.jpg",
+    "docs/screenshots/iphone13-partner-map-simulation.jpg"
+  ],
+  "normal_app_restoration": "normal signed app reinstalled and visually verified with existing Customer login still active",
+  "restore_screenshot": "docs/screenshots/iphone13-normal-app-restored.jpg"
+}

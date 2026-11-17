@@ -1,3 +1,4 @@
+import {asUserFacingError, UserFacingError} from '@/src/errors';
 import {createContext, ReactNode, useContext, useEffect, useState} from 'react';
 import {api, setTokenProvider, setUnauthorizedHandler} from '@/src/api';
 import {loadEnv} from '@/src/env';
@@ -47,14 +48,14 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }
   async function completeVerification() {
     await identity.refresh();
-    if (!identity.current()?.emailVerified) throw new Error('Open the verification link in your email, then continue.');
+    if (!identity.current()?.emailVerified) throw new UserFacingError('Open the verification link in your email, then continue.');
     await identity.token(true);
     await refresh();
   }
   async function loginEmail(email: string, password: string) {
     validateCredentials(email, password);
     await identity.login(email.trim().toLowerCase(), password);
-    if (!identity.current()?.emailVerified) throw new Error('Please verify your email before signing in.');
+    if (!identity.current()?.emailVerified) throw new UserFacingError('Please verify your email before signing in.', 'auth/email-not-verified');
     await refresh();
   }
   async function registerEmail(name: string, email: string, password: string) {
@@ -63,7 +64,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }
   async function loginGoogle() { await identity.google(); await completeVerification(); }
   async function resetPassword(email: string) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) throw new Error('Enter a valid email address.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) throw new UserFacingError('Enter a valid email address.');
     try { await identity.reset(email.trim().toLowerCase()); }
     catch (error: any) { if (error.code !== 'auth/user-not-found') throw error; }
   }
@@ -78,6 +79,10 @@ export function AuthProvider({children}: {children: ReactNode}) {
     const profile = await api<User>('/auth/role', {body:{role, phone:phone || undefined}});
     if (uid && identity.current()?.uid === uid) setUser(profile);
   }
-  return <AuthCtx.Provider value={{user,loading,entryRole,setEntryRole,loginEmail,registerEmail,loginGoogle,resetPassword,resendVerification:identity.verify,completeVerification,setRole,setUser,refresh,logout}}>{children}</AuthCtx.Provider>;
+  const friendly = <A extends unknown[],>(action:(...args:A)=>Promise<void>) => (...args:A):Promise<void> => {
+    try { return action(...args).catch(error => {throw asUserFacingError(error);}); }
+    catch(error) { return Promise.reject(asUserFacingError(error)); }
+  };
+  return <AuthCtx.Provider value={{user,loading,entryRole,setEntryRole,loginEmail:friendly(loginEmail),registerEmail:friendly(registerEmail),loginGoogle:friendly(loginGoogle),resetPassword:friendly(resetPassword),resendVerification:friendly(identity.verify),completeVerification:friendly(completeVerification),setRole:friendly(setRole),setUser,refresh:friendly(refresh),logout:friendly(logout)}}>{children}</AuthCtx.Provider>;
 }
 export function useAuth() { const value = useContext(AuthCtx); if (!value) throw new Error('useAuth outside provider'); return value; }

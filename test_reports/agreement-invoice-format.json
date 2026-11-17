@@ -1,0 +1,25 @@
+{
+  "source_sha256": "311308a0ae5740b39f7b636a79b44d605bef198856faa88362f619aad373b110",
+  "output_sha256": "b14c3b95372903f681651db556c69f41fca167d5dfadba9ef6e900376268fc34",
+  "output": "output/pdf/LuggEase-Transfer-Agreement-LTA-9D0B8035C0974B27-Formatted.pdf",
+  "original_document_version": 1,
+  "new_generator_version": 3,
+  "source_clauses_preserved": true,
+  "goods_count": 10,
+  "output_pages": 2,
+  "new_generator_pages": 2,
+  "original_unchanged": true,
+  "backend_tests": 127,
+  "visual_review": "all pages of formatted copy and v3 generator output passed; no overlaps/clipping",
+  "layout": "A4, 36-point margins, invoice logo/header, matching typography and orange table accents",
+  "accepted_agreements": "stored document bytes and signature hashes unchanged",
+  "api_revision": "luggease-api-00020-qvk",
+  "cloud_build": "a8022694-1809-4d04-b51e-9eea425665ab",
+  "deployment_checks": {
+    "website": 200,
+    "private_api": 403
+  },
+  "private_invocation": "gateway-only, unchanged",
+  "owner_approval": "Approved format and deployment on 17 November 2026",
+  "approved_deployment_verified": "luggease-api-00020-qvk ready, serving 100% traffic"
+}

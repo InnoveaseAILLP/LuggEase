@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import {useState} from 'react';
 import {Pressable, ScrollView, Text, View} from 'react-native';
 import {useQuery} from '@tanstack/react-query';
@@ -36,7 +37,7 @@ export default function AdminReports() {
   const action=async()=>{
     setExporting(true);
     try{toast(await saveReportCSV(recordsCSV(rows),`LuggEase-Report-${view}-${range.start}-${range.end}`),'success');}
-    catch(error:any){toast(error.message,'error');}finally{setExporting(false);}
+    catch(error:any){toast(getErrorMessage(error),'error');}finally{setExporting(false);}
   };
   if(!allowed)return <Text accessibilityRole="alert">Administrator access is required.</Text>;
   const chip=(key:string,label:string,active:boolean,onPress:()=>void)=><Pressable key={key} accessibilityRole="button" accessibilityState={{selected:active}} onPress={onPress} style={{borderWidth:1,borderColor:active?colors.brandPrimary:colors.border,borderRadius:12,padding:10,backgroundColor:active?colors.brandTertiary:colors.surfaceSecondary}}><Text style={{color:active?colors.brandPrimary:colors.onSurface}}>{label}</Text></Pressable>;
@@ -52,7 +53,7 @@ export default function AdminReports() {
           <Button title="Generate reports" testID="generate-admin-reports" onPress={()=>{if(dates.start===range.start&&dates.end===range.end)report.refetch();else setRange({...dates});}}/>
         </Card>
         {report.isLoading?<Text>Loading reports…</Text>:null}
-        {report.error?<Text accessibilityRole="alert" style={{color:colors.error}}>{report.error.message}</Text>:null}
+        {report.error?<Text accessibilityRole="alert" style={{color:colors.error}}>{getErrorMessage(report.error)}</Text>:null}
         {report.data&&!report.isFetching?<>
           <Card><SectionTitle>Consolidated overview</SectionTitle>
             <Text>Report: {report.data.start_date} through {report.data.end_date} · India time</Text>
@@ -76,7 +77,7 @@ export default function AdminReports() {
         <Button title="Search accounts" onPress={()=>{setSearch(searchText.trim());setOffset(0);}}/>
         <View style={{flexDirection:'row',gap:8,flexWrap:'wrap'}}>{[['','All roles'],['customer','Customer'],['partner','Delivery Partner'],['admin','Admin'],['unassigned','Not yet chosen']].map(([key,label])=>chip(key,label,role===key,()=>{setRole(key);setOffset(0);}))}</View>
         {directory.isLoading?<Text>Loading accounts…</Text>:null}
-        {directory.error?<Text accessibilityRole="alert">{directory.error.message}</Text>:null}
+        {directory.error?<Text accessibilityRole="alert">{getErrorMessage(directory.error)}</Text>:null}
         <Text>{directory.data?.total??0} matching accounts</Text>
         {directory.data?.users.map(account=><Card key={account.user_id}><Text style={{fontWeight:'700',color:colors.onSurface}}>{account.name||'LuggEase user'}</Text><Text>{account.email}</Text><Text>{account.role?ROLE_LABELS[account.role]:'Not yet chosen'}</Text>{account.role==='partner'?<Text>Partner application: {account.partner_status||'incomplete'}</Text>:null}</Card>)}
         <Button title="Previous accounts" disabled={offset===0} onPress={()=>setOffset(Math.max(0,offset-20))}/>

@@ -40,7 +40,7 @@ test('verification failure reports an error and refreshes status',async()=>{
  fireEvent.press(view.getByTestId('pay-now-button'));
  await waitFor(()=>expect(view.getByTestId('checkout-webview')).toBeTruthy());
  fireEvent(view.getByTestId('checkout-webview'),'message',{nativeEvent:{data:JSON.stringify({type:'receipt',data:{}})}});
- await waitFor(()=>expect(mockPaymentToast).toHaveBeenCalledWith('Provider receipt mismatch','error'));
+ await waitFor(()=>expect(mockPaymentToast).toHaveBeenCalledWith('Your payment status could not be confirmed. Refresh payment status before trying to pay again. Contact support if money was deducted.','error'));
  expect(mockPaymentToast).not.toHaveBeenCalledWith('Payment verified.','success');expect(done).toHaveBeenCalledTimes(1);
  expect(view.getByTestId('pay-now-button').props.accessibilityState.busy).toBe(false);
 });
@@ -48,6 +48,6 @@ test('checkout creation errors permit a retry',async()=>{
  (api as jest.Mock).mockRejectedValueOnce(new Error('Merchant unavailable'));
  const view=render(<PayButton orderId="QA-1" amountLabel="₹23.50" stage="advance" onDone={jest.fn()}/>);
  fireEvent.press(view.getByTestId('pay-now-button'));
- await waitFor(()=>expect(mockPaymentToast).toHaveBeenCalledWith('Merchant unavailable','error'));
+ await waitFor(()=>expect(mockPaymentToast).toHaveBeenCalledWith('Online payments are temporarily unavailable. Please try again later or contact support.','error'));
  expect(view.queryByTestId('checkout-webview')).toBeNull();expect(view.getByTestId('pay-now-button').props.accessibilityState.busy).toBe(false);
 });

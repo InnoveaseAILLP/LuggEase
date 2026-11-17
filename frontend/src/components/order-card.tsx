@@ -12,8 +12,9 @@ export function OrderCard({ order, showPayout, footer }: { order: Order; showPay
   const q = order.quote;
   const count = q.items.reduce((a, i) => a + i.qty, 0);
   return (
-    <Pressable testID={`order-card-${order.order_id}`} onPress={() => router.push(`/order/${order.order_id}`)} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
-      <Card>
+    <Card>
+      <Pressable testID={`order-card-${order.order_id}`} onPress={() => router.push(`/order/${order.order_id}`)} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+        {order.is_test?<Text style={{color:colors.warning,fontWeight:"700"}}>TEST ORDER — no money received</Text>:null}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <Text style={{ fontSize: 13, fontWeight: "700", color: colors.muted }}>#{order.order_id}</Text>
           <StatusBadge status={order.status} />
@@ -37,17 +38,17 @@ export function OrderCard({ order, showPayout, footer }: { order: Order; showPay
           <Text style={{ fontSize: 12, color: colors.muted }}>{q.service_type === "pack_and_shift" ? "Pack & Shift" : "Shift only"}{order.move_date ? ` · ${order.move_date}` : ""}</Text>
           {showPayout ? (
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontSize: 11, color: colors.muted }}>You earn (after 5%)</Text>
+              <Text style={{ fontSize: 11, color: colors.muted }}>{order.is_test?"Test payout (not payable)":"You earn (after 5%)"}</Text>
               <Text testID={`order-payout-${order.order_id}`} style={{ fontSize: 18, fontWeight: "800", color: colors.success }}>{inr(q.partner_payout)}</Text>
             </View>
           ) : (
             <Text style={{ fontSize: 18, fontWeight: "800", color: colors.onSurface }}>{inr(q.grand_total, 0)}</Text>
           )}
         </View>
-        {order.payment_plan?<Text style={{fontSize:12,color:colors.muted,marginTop:space.sm}}>Received {inr(order.payment_plan.paid_paise/100)} · Balance {inr((order.payment_plan.total_paise-order.payment_plan.paid_paise)/100)} · 50% booking / 50% pickup</Text>:null}
-        {footer ? <View style={{ marginTop: space.md }}>{footer}</View> : null}
-      </Card>
-    </Pressable>
+        {order.payment_plan?<Text style={{fontSize:12,color:colors.muted,marginTop:space.sm}}>{order.is_test?"Simulated credit":"Received"} {inr(order.payment_plan.paid_paise/100)} · Balance {inr((order.payment_plan.total_paise-order.payment_plan.paid_paise)/100)} · 50% booking / 50% pickup</Text>:null}
+      </Pressable>
+      {footer ? <View style={{ marginTop: space.md }}>{footer}</View> : null}
+    </Card>
   );
 }
 

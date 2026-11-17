@@ -170,3 +170,98 @@ Final configured backend suite, run from backend without overriding test selecti
 ## 2026-11-16 roles, administrator and consolidated reports
 
 119 configured backend tests passed both with the isolated Mongo substitute and real local MongoDB. 74 frontend tests passed. Role/report-focused follow-ups, typecheck, lint, web production build, Android signed Release and iOS Release builds passed. Scope and financial definitions: admin-access-and-reports.md. API revision luggease-api-00015-x2d / Hosting 154feff39fdcc68d. Admin signup remains unavailable; rmanojananth@innovease-ai.in was provisioned with a trusted claim, but its email was not fabricated as verified and no password was chosen. Private first-login and actual password-entry checks remain outside simulation evidence.
+
+
+## Separate administrator entry release — 17 November 2026
+
+Published Hosting version sites/luggease-innovease/versions/6ca15eb5128056fe. Public login was visually verified with only Customer and Delivery Partner, no Admin control and no administrator email. The dedicated entry was visually verified with the nominated email fixed, password sign-in and set/reset-password action, and no signup. A live administrator credential attempt was not certified successful; password setup and credential entry remain private user actions.
+
+78 frontend tests passed across 18 suites, including exact-path matching, stale preference isolation, native/public behavior, private form setup and non-admin account barrier checks. Typecheck, lint, web production build, signed Android arm64 Release and iOS Release builds passed. The backend and its assigned roles were not changed. Direct private API rejection remains 403, and tokenless gateway access remains 401.
+
+Both dedicated pathname variants returned 200 with X-Robots-Tag noindex/nofollow/noarchive, Cache-Control no-store and Referrer-Policy no-referrer. Root, privacy and terms pages remained available. Deployment used the official Firebase Hosting REST API with the renewed authorized account after the CLI's stored credentials/token handling failed. Reference: https://firebase.google.com/docs/hosting/api-deploy . No additional service-account key or public API access was created.
+
+
+## Partner details text cleanup — 17 November 2026
+
+Removed all five example placeholders (city, vehicle registration, UPI, IFSC and bank name). Added “CAPS Letter without any spaces” below vehicle registration. Typecheck and production web build passed; live bundle text verified. Hosting release: sites/luggease-innovease/versions/3fbba925072324c6. Existing form input was preserved and was not reloaded or submitted during verification. No saved partner values or validation rules were changed.
+
+
+## Friendly application errors — 17 November 2026
+
+112 frontend tests (19 suites) and 122 configured backend tests passed. Typecheck, lint, production web build, Android arm64 Release build and iOS Release build passed; Android device-test APK signed with the existing certificate. Existing third-party mongomock deprecation and bundle-size warnings remain.
+
+Published Hosting c19bb5c221219487 and private API revision luggease-api-00016-t85 (build 7836fa77-a5fa-42b9-af5b-19ae58120cb7). Live synthetic invalid sign-in verified the exact friendly credential message, without provider names/codes; screenshot: screenshots/luggease-friendly-login-error.jpg. No account was created, password changed, payment attempted or existing form reloaded. Native changes were built, but this update was not installed or exercised on physical devices. Automated verification: ../test_reports/friendly-error-verification.json.
+
+
+## Invoice availability and signed pickup flow — 17 November 2026
+
+116 frontend tests across 20 suites and 122 configured backend tests passed. Typecheck, lint, web production build, signed Android arm64 Release build and iOS Release build passed. New UI regressions block invoice requests before issue, enable review after advance, require signatures before pickup, and require full payment before transit. API simulations cover the same sequence plus final delivery signatures, tracking and feedback; provider payments and customer signatures are synthetic.
+
+Deployed private API revision luggease-api-00017-5d6 (build 8beb4196-8b96-42ee-9705-c453414c28b7) and Hosting version 40038e7f5b836896. The owner explicitly chose to keep live collection disabled after being offered secure live-credential setup. No live keys were loaded, payment initiated or production order advanced. Native builds were not installed on devices for this update. Deployment evidence: ../test_reports/pickup-flow-verification.json.
+
+
+## Checkout loading recovery — 17 November 2026
+
+122 frontend tests across 22 suites passed, including new retryable checkout-loader tests and web payment-button tests. Typecheck, lint and production web build passed. A merchant-ready button remains actionable while secure checkout loads; download errors/timeouts remove the failed script and permit another click. Shared loading avoids duplicate script downloads. A synthetic ₹958 advance uses the server amount of 95,800 paise. Merchant-disabled buttons never create payment orders.
+
+Payment configuration now refreshes every 30 seconds instead of being cached forever. The order footer explains merchant activation immediately beside the disabled payment button. The protected live-credential file was checked for readiness without displaying its contents and remains unconfigured; merchant activation and real payment collection are pending user input. No backend, merchant keys, production order or actual payment was changed in this update. Hosting release evidence: ../test_reports/checkout-recovery-hosting-release.json.
+
+
+## Live merchant activation — 17 November 2026
+
+The owner supplied live credentials and requested activation. A read-only Razorpay authentication check returned HTTP 200; no provider order, charge, capture or refund was initiated. The credentials were stored as versioned Secret Manager entries and made readable only by the existing LuggEase API runtime. Cloud Run activation and runtime availability checks are recorded in ../test_reports/live-payment-activation.json. The protected local credential file remains excluded from version control with permissions 0600. Website checkout loading and availability-refresh regressions passed previously (122 frontend tests). This configuration update does not certify a completed live payment or merchant settlement.
+
+Activation deployed successfully as luggease-api-00018-rw4, serving all traffic with pinned versions of both merchant secrets. Website returned 200; anonymous direct API remained 403 and tokenless gateway remained 401. The existing operator identity could not impersonate the gateway for a direct catalog check; no extra token-creation or invocation permission was granted. Live payment completion and the owner’s signed-in checkout screen remain user checks. Refresh the website/reopen the order to load the latest availability-refresh logic; current clients poll configuration every 30 seconds.
+
+
+## Owner test-order conversion and physical iPhone maps — 17 November 2026
+
+Order LE261116A46516 was converted, at the owner’s request, to a clearly marked test order with only the ₹958 booking advance simulated, ₹958 remaining and ₹0 actually received. The private one-off job checked the exact unpaid state/amount and one existing provider session; Razorpay reported no authorized/captured money. No provider mutation or real payment entry was made. API luggease-api-00019-tms excludes test orders from real dispatch, reports, earnings, payouts and refund obligations and blocks live collection. Test invoices carry a TEST prefix, non-tax heading and no-payment-received notice on every page. The one-off job was deleted after its verified audit log was saved. Evidence: ../test_reports/owner-test-order-LE261116A46516.json. Backend: 124 tests passed.
+
+On the connected physical iPhone 13 Pro Max, a temporary, explicitly labelled simulation entry exercised the existing Orders list, ShipmentTracking and native ShipmentMap components using fixture Customer/Partner roles and synthetic public Coimbatore railway-station-to-airport points. Customer marker movement/coordinates and partner sharing/map movement were visually verified. The map itself loaded Google Maps from the normal hosted page. The fixture blocks production API calls and substitutes the location source; it is not a test of real GPS accuracy, real account switching or cross-device backend propagation. Screenshots: screenshots/iphone13-customer-map-simulation.jpg, screenshots/iphone13-customer-map-simulation-moved.jpg and screenshots/iphone13-partner-map-simulation.jpg. The normal signed app and build artifact were restored, and the existing Customer login was visually confirmed. Details: ../test_reports/iphone13-map-simulation.json. The owner’s real record was not advanced to In transit by this fixture.
+
+
+## Invoice-style agreement generator — 17 November 2026
+
+127 configured backend tests passed, including three new PDF layout/content regressions and the existing immutable-agreement download/signature tests. The supplied two-page v1 agreement was reformatted without altering its original file, goods, addresses, amount, delivery instant or clauses. Its source version/review status is preserved. New agreements use layout version 3 with existing current terms. Rendered and visually inspected every page of both the supplied formatted copy and representative v3 output; no clipping/overlap was observed. Source/output hashes and checks: ../test_reports/agreement-invoice-format.json. PDF files are marked binary for version-control diffs. This update changes document presentation and the new-document version; it does not alter orders, payments or accepted agreement records.
+
+Invoice-style generator deployed as luggease-api-00020-qvk (build a8022694-1809-4d04-b51e-9eea425665ab). Ready revision and gateway-only invoker policy verified; website 200 and anonymous direct API 403. No existing agreement bytes or customer order/payment state were modified by this release.
+
+
+## Partner Orders discovery and invited test job — 17 November 2026
+
+The reported partner account vsaraswathi@innovease-ai.in was confirmed approved with a two-wheeler. There were no real open jobs; LE261116A46516 is an unassigned simulated Tata Ace order. The owner explicitly approved a vehicle exception for only that test order and this account. A private one-off operation wrote the scoped invitation, then called the deployed listing function to verify that the offer appears in the invited test scope, remains absent from real jobs, hides contact/OTP before acceptance, and leaves the registered vehicle unchanged. The job did not accept the order or record money.
+
+Added Available jobs, My jobs and invited Test jobs in partner Orders, explicit acceptance controls, loading/error/approval guidance, profile refresh on pull-to-refresh and offer/assigned-list invalidation after atomic acceptance. Capacity is filtered before limiting to the newest 100 offers. Existing test financial exclusions remain and simulated feedback cannot inflate real partner ratings. Real customer Orders behavior is retained.
+
+129 configured backend tests and 128 frontend tests passed; typecheck, lint, web build, signed Android arm64 Release and iOS Release builds passed. Production API revision luggease-api-00021-gw9 (build c8a8f3a8-2455-4279-b353-ffda12ca17e9), Hosting 58d7974511cd6bcc. Isolated tests cover actual acceptance, concurrency and status changes; the production test offer remains unaccepted so the partner can choose it. Verification: ../test_reports/partner-orders-verification.json.
+
+Live signed-in browser verification passed: approved Delivery Partner V Saraswathi opened Orders, saw Available jobs/My jobs/Test jobs, then the invited test order LE261116A46516 with Finding partner and an enabled Accept test job button. Screenshot: screenshots/partner-orders-invited-test-job.jpg. No acceptance was submitted and the order remained available for the partner. The one-off invitation job was deleted. Website 200, direct private API 403 and tokenless gateway 401 verified. Native builds were prepared but not reinstalled during this update.
+
+
+## Delivery revision validation and simulated pickup balance — 17 November 2026
+
+141 frontend tests and 130 configured backend tests passed. Typecheck, lint, production web build, signed Android arm64 Release and iOS Release builds passed; native apps were not reinstalled for this update. Client/server time validation uses India time, round-trip calendar validation and a future/30-day bound. Real reasons require 10 trimmed characters; test reasons require 4, with inline explanation. The new explicit simulated-balance action is restricted to the invited assigned partner of a signed, picked-up test order; it never calls the provider, appends a real receipt or starts the trip. Tests verify authorization, confirmation, workflow guards, idempotency, real-order rejection and transit gating.
+
+Deployed API luggease-api-00022-2lt (build ed9b05d6-9425-43b9-a4af-f6cb2c745e1e), Hosting 46d8912ccafa7871. In the existing signed-in partner browser, test order LE261116A46516 accepted future ETA 17 November 2026 18:19 IST with reason Test. The explicit test button recorded ₹958 simulated pickup credit, yielding ₹1,916 total simulated credit, ₹0 outstanding and ₹0 actual money received. Start trip was visibly enabled; it was not clicked and the order remained Picked up. Screenshot: screenshots/delivery-time-start-trip-fixed.jpg. Verification: ../test_reports/eta-balance-verification.json. Website 200, direct private API 403 and tokenless gateway 401 verified.
+
+
+## Delivery-time hour/minute dropdowns — 17 November 2026
+
+Replaced delivery revision time text entry with separate hour (00-23) and minute (00-59) selectors. The web uses standard select controls; native iOS/Android uses bounded selection lists. Values remain padded HH:mm, including individual minutes such as 19 and 59; India-time conversion and future/30-day/reason checks are unchanged. No dependencies or backend changes were required.
+
+144 frontend tests passed across 25 suites; typecheck, lint, web production build, signed Android arm64 Release and iOS Release builds passed. Hosting 68a4c85e2528f803 published. In the live signed-in partner form, verified both option counts, selected 23:59 and restored the original form selection. No delivery estimate, payment or trip status was submitted/changed during this check. Screenshot: screenshots/delivery-time-dropdowns.jpg. Report: ../test_reports/time-dropdown-verification.json. Mobile builds were prepared but not reinstalled.
+
+
+### Customer live map reliability — 17 November 2026
+
+Fixed a discarded first GPS fix during watcher startup. The owning customer now opens tracking automatically for In transit orders and polls every 10 seconds. Foreground sources request a fresh fix every 20 seconds, including when stationary. Permission denial stops the source; approximate fixes are rejected with guidance. Permission-prompt inactivity defers upload until active; backgrounding, unmounting and trip completion cancel sharing. Waiting and stale-position states are explicit.
+
+Validation: typecheck and lint passed; 153 tests across 27 suites passed, including an isolated partner-to-customer flow with separate query caches, synchronous first fix, permission/error handling, heartbeat and cleanup. Web, Android release and iOS release builds passed. Hosting release 23165c00f052f2cc published. Updated native iPhone app installed successfully; Android device-test APK signed. No real location, status, money or signature was fabricated by these tests. Real phone-to-customer receipt remains pending the partner phone's GPS confirmation.
+
+
+### Location timeout recovery — 17 November 2026
+
+The user's phone reported location acquisition timeout; no production GPS position had been received. Added an immediate fresh device-location request alongside a 60-second high-accuracy watcher, with 20-second foreground refreshes and no duplicate pending request. Existing accuracy (250m maximum), freshness, authorization, consent and foreground-only constraints remain. A transient source timeout does not override a recent usable fix; permission denial remains fatal. Retry location replaces and cancels the old watcher. Error guidance covers device/browser precise location and connectivity.
+
+Typecheck, lint and all 156 tests (28 suites) passed. Web, Android and iOS release builds passed; Hosting version 107070f748332f4f published. Physical phone GPS acquisition/customer receipt still requires a device retry; these tests use isolated fixtures and do not claim that a real position was shared.

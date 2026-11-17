@@ -305,14 +305,14 @@ def apply_coupon(code: Optional[str], subtotal: float, category: str):
 
 def compute_quote(q: QuoteRequest, with_options: bool = True) -> dict:
     if q.pickup_state not in INDIAN_STATES or q.drop_state not in INDIAN_STATES:
-        raise HTTPException(400, "Invalid state")
+        raise HTTPException(400, "Choose a supported pickup state to continue.")
     if q.service_category not in CATEGORY_KEYS:
-        raise HTTPException(400, "Invalid service category")
+        raise HTTPException(400, "Choose a delivery service to continue.")
     lines, total_kg, heavy_kg, est_pack_hours, material, junk_fee = [], 0.0, 0.0, 0.0, 0.0, 0.0
     for it in q.items:
         item = ITEM_MAP.get(it.key)
         if not item:
-            raise HTTPException(400, f"Unknown item {it.key}")
+            raise HTTPException(400, "An item in your list is unavailable. Review the item list and try again.")
         kg = item["weight"] * it.qty
         total_kg += kg
         if item["size"] == "heavy":
@@ -520,7 +520,7 @@ async def firebase_profile(claims: dict, create: bool = False) -> dict:
         # Another request may have enrolled this same verified UID after our first lookup.
         if existing.get("firebase_uid") == uid:
             return existing
-        raise HTTPException(409, "Existing account requires a verified identity migration. Contact support.")
+        raise HTTPException(409, "This account needs help completing sign-in. Please contact support.")
     user = {"user_id": f"user_{uuid.uuid4().hex[:12]}", "firebase_uid": uid,
             "email": claims["email"].strip().lower(), "name": claims.get("name") or "",
             "picture": claims.get("picture"), "role": "admin" if admin_access else None,
@@ -541,7 +541,7 @@ def bearer(request: Request) -> str:
         # Firebase token independently, including revocation and email verification.
         header = request.headers.get("X-Forwarded-Authorization", header)
     if not header.lower().startswith("bearer ") or not header[7:].strip():
-        raise HTTPException(401, "Not authenticated")
+        raise HTTPException(401, "Please sign in to continue.")
     return header[7:].strip()
 
 
@@ -569,7 +569,7 @@ async def firebase_session(request: Request):
 def require_role(*roles: str):
     async def dep(user=Depends(current_user)):
         if user.get("role") not in roles:
-            raise HTTPException(403, "Not allowed")
+            raise HTTPException(403, "Your account does not have permission to do this.")
         return user
     return dep
 
@@ -588,7 +588,7 @@ class LoginBody(BaseModel):
 @api.post("/auth/register")
 async def register(body: RegisterBody):
     if not ALLOW_LEGACY_AUTH:
-        raise HTTPException(410, "Use Firebase Authentication")
+        raise HTTPException(410, "This sign-in method is no longer supported. Please sign in using email or Google.")
     email = body.email.strip().lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "An account already exists for this email")
@@ -604,7 +604,7 @@ async def register(body: RegisterBody):
 @api.post("/auth/login")
 async def login(body: LoginBody):
     if not ALLOW_LEGACY_AUTH:
-        raise HTTPException(410, "Use Firebase Authentication")
+        raise HTTPException(410, "This sign-in method is no longer supported. Please sign in using email or Google.")
     user = await db.users.find_one({"email": body.email.strip().lower()}, {"_id": 0})
     ok = bool(user and user.get("password_hash") and bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()))
     if not ok:
@@ -679,7 +679,7 @@ async def place_details(place_id: str, response: Response,
                         session_token: str = Query(pattern=r"^[A-Za-z0-9_-]{16,36}$"),
                         user=Depends(current_user)):
     if not 1 <= len(place_id) <= 256 or not all(c.isalnum() or c in "_-" for c in place_id):
-        raise HTTPException(422, "Invalid place identifier")
+        raise HTTPException(422, "This address suggestion is no longer available. Search and select the address again.")
     response.headers["Cache-Control"] = "private, no-store"
     await limit_places(user)
     return await google_places.details(place_id, session_token)
@@ -795,7 +795,9 @@ async def get_order_for(order_id: str, user: dict) -> dict:
         return o
     if o.get("partner_id") == user["user_id"]:
         return partner_view(o)
-    if role == "partner" and user.get("partner_status") == "approved" and o["status"] == "paid" and not o.get("partner_id"):
+    if role=="partner" and o.get("is_test") and o.get("testing",{}).get("allowed_partner_id")==user["user_id"] and o["status"]=="paid" and not o.get("partner_id") and (o.get("testing",{}).get("allow_vehicle_mismatch") or vehicle_ok((user.get("partner_profile") or {}).get("vehicle_type"),o["quote"]["vehicle"]["key"])):
+        return hide_contact(o)
+    if role == "partner" and user.get("partner_status") == "approved" and o["status"] == "paid" and not o.get("partner_id") and not o.get("is_test"):
         return hide_contact(o)
     raise HTTPException(404, "Order not found")
 
@@ -836,11 +838,11 @@ async def cancel_order(order_id: str, user=Depends(require_role("customer", "adm
     o = await get_order_for(order_id, user)
     if o["status"] not in ("pending_payment", "paid", "assigned"):
         raise HTTPException(400, "Order can no longer be cancelled")
-    paid_amount = o["payment_plan"]["paid_paise"] / 100 if o.get("payment_plan") else (o["quote"]["grand_total"] if o["status"] != "pending_payment" else 0)
+    paid_amount = 0 if o.get("is_test") else o["payment_plan"]["paid_paise"] / 100 if o.get("payment_plan") else (o["quote"]["grand_total"] if o["status"] != "pending_payment" else 0)
     fee = min(CANCELLATION_FEE, paid_amount) if o["status"] == "assigned" else 0
     refund = r2(max(0,paid_amount - fee))
     refund_note = None
-    if o["status"] != "pending_payment":
+    if o["status"] != "pending_payment" and not o.get("is_test"):
         refund_note = f"Refund of ₹{refund:,.2f} will be processed to the original payment method" + (
             f" (₹{fee} cancellation fee as a partner was already assigned)" if fee else "")
     result = await db.orders.update_one({"order_id": order_id, "status": o["status"]}, {
@@ -853,7 +855,7 @@ async def cancel_order(order_id: str, user=Depends(require_role("customer", "adm
 
 
 def vehicle_ok(partner_vehicle: str, order_vehicle: str) -> bool:
-    return VEHICLE_KEYS.index(partner_vehicle) >= VEHICLE_KEYS.index(order_vehicle)
+    return partner_vehicle in VEHICLE_KEYS and order_vehicle in VEHICLE_KEYS and VEHICLE_KEYS.index(partner_vehicle) >= VEHICLE_KEYS.index(order_vehicle)
 
 
 def mask(num: Optional[str]) -> Optional[str]:
@@ -869,9 +871,18 @@ def settlement_snapshot(partner: dict) -> dict:
 
 
 async def assign(order_id: str, partner: dict, by: str):
+    candidate = await db.orders.find_one({"order_id":order_id}, {"is_test":1,"testing.allowed_partner_id":1,"testing.allow_vehicle_mismatch":1,"quote.vehicle.key":1})
+    test_job=bool(candidate and candidate.get("is_test"))
+    if test_job and (by!="partner" or candidate.get("testing",{}).get("allowed_partner_id")!=partner["user_id"]):
+        raise HTTPException(409,"This test job is only available to its invited delivery partner.")
+    scope={"is_test":True,"testing.allowed_partner_id":partner["user_id"]} if test_job else {"is_test":{"$ne":True}}
+    if test_job and not vehicle_ok((partner.get("partner_profile") or {}).get("vehicle_type"),candidate.get("quote",{}).get("vehicle",{}).get("key")):
+        if not candidate.get("testing",{}).get("allow_vehicle_mismatch"):
+            raise HTTPException(400,"Your vehicle is too small for this load")
+        scope["testing.allow_vehicle_mismatch"]=True
     n = iso(now_utc())
     res = await db.orders.update_one(
-        {"order_id": order_id, "status": "paid", "partner_id": None},
+        {"order_id": order_id, "status": "paid", "partner_id": None, **scope},
         {"$set": {"status": "assigned", "partner_id": partner["user_id"], "partner_name": partner.get("name"),
                   "partner_phone": partner.get("phone"),
                   "partner_vehicle": (partner.get("partner_profile") or {}).get("vehicle_number"),
@@ -885,12 +896,15 @@ async def assign(order_id: str, partner: dict, by: str):
 
 @api.post("/orders/{order_id}/accept")
 async def accept_order(order_id: str, user=Depends(require_role("partner"))):
-    if user.get("partner_status") != "approved":
-        raise HTTPException(403, "Your partner account is not approved yet")
     o = await db.orders.find_one({"order_id": order_id}, {"_id": 0})
     if not o:
         raise HTTPException(404, "Order not found")
-    if not vehicle_ok(user["partner_profile"]["vehicle_type"], o["quote"]["vehicle"]["key"]):
+    if o.get("is_test"):
+        if o.get("testing",{}).get("allowed_partner_id")!=user["user_id"]:
+            raise HTTPException(409,"This test job is only available to its invited delivery partner.")
+    elif user.get("partner_status") != "approved":
+        raise HTTPException(403, "Your partner account is not approved yet")
+    if not (o.get("is_test") and o.get("testing",{}).get("allow_vehicle_mismatch")) and not vehicle_ok((user.get("partner_profile") or {}).get("vehicle_type"), o["quote"]["vehicle"]["key"]):
         raise HTTPException(400, "Your vehicle is too small for this load")
     return partner_view(await assign(order_id, user, "partner"))
 
@@ -906,8 +920,8 @@ async def update_status(order_id: str, body: StatusBody, user=Depends(require_ro
     if not o:
         raise HTTPException(404, "Order not found")
     if o["status"] not in STATUS_FLOW or STATUS_FLOW.index(body.status) != STATUS_FLOW.index(o["status"]) + 1:
-        raise HTTPException(400, "Invalid status change")
-    if body.status == "picked_up" and o.get("payment_plan") and o["payment_plan"]["paid_paise"] < o["payment_plan"]["total_paise"]:
+        raise HTTPException(400, "This status change is unavailable. Refresh the order and follow the next delivery step.")
+    if body.status == "in_transit" and o.get("payment_plan") and o["payment_plan"]["paid_paise"] < o["payment_plan"]["total_paise"]:
         raise HTTPException(409,"The remaining 50% pickup balance must be paid after loading and before departure.")
     if body.status == "picked_up" and o.get("requires_pickup_signatures") and not o.get("pickup_signatures_completed_at"):
         raise HTTPException(409, "Capture customer signatures on the invoice and transfer agreement after loading, before leaving pickup.")
@@ -938,11 +952,12 @@ async def rate_order(order_id: str, body: RateBody, user=Depends(require_role("c
     if o["status"] != "delivered" or not o.get("partner_id"):
         raise HTTPException(400, "You can rate only after delivery")
     if o.get("rating"):
-        raise HTTPException(409, "Already rated")
+        raise HTTPException(409, "Your feedback has already been submitted.")
     rating = {"stars": body.stars, "comment": (body.comment or "").strip() or None, "at": iso(now_utc())}
     result=await db.orders.update_one({"order_id": order_id,"customer_id":user["user_id"],"status":"delivered","rating":None}, {"$set": {"rating": rating}})
-    if result.modified_count!=1: raise HTTPException(409,"Already rated or order changed")
-    await db.users.update_one({"user_id": o["partner_id"]}, {"$inc": {"rating_sum": body.stars, "rating_count": 1}})
+    if result.modified_count!=1: raise HTTPException(409,"Feedback has already been submitted or the order has changed. Refresh to check its status.")
+    if not o.get("is_test"):
+        await db.users.update_one({"user_id": o["partner_id"]}, {"$inc": {"rating_sum": body.stars, "rating_count": 1}})
     return await db.orders.find_one({"order_id": order_id}, {"_id": 0})
 
 
@@ -979,17 +994,22 @@ async def save_partner_profile(body: PartnerProfile, user=Depends(require_role("
 
 
 @api.get("/partner/jobs")
-async def open_jobs(user=Depends(require_role("partner"))):
-    if user.get("partner_status") != "approved":
-        return []
-    vt = user["partner_profile"]["vehicle_type"]
-    jobs = await db.orders.find({"status": "paid", "partner_id": None}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return [hide_contact(j) for j in jobs if vehicle_ok(vt, j["quote"]["vehicle"]["key"])]
+async def open_jobs(scope:Literal["live","test"]="live", user=Depends(require_role("partner"))):
+    if scope=="live" and user.get("partner_status")!="approved":return []
+    vt=(user.get("partner_profile") or {}).get("vehicle_type")
+    if vt not in VEHICLE_KEYS:return []
+    query={"status":"paid","partner_id":None,"quote.vehicle.key":{"$in":VEHICLE_KEYS[:VEHICLE_KEYS.index(vt)+1]}}
+    if scope=="test":
+        capacity=query.pop("quote.vehicle.key")
+        query.update({"is_test":True,"testing.allowed_partner_id":user["user_id"],"$or":[{"quote.vehicle.key":capacity},{"testing.allow_vehicle_mismatch":True}]})
+    else:query["is_test"]={"$ne":True}
+    jobs=await db.orders.find(query,{"_id":0}).sort("created_at",-1).to_list(100)
+    return [hide_contact(job) for job in jobs]
 
 
 @api.get("/partner/earnings")
 async def earnings(user=Depends(require_role("partner"))):
-    orders = await db.orders.find({"partner_id": user["user_id"]}, {"_id": 0}).to_list(1000)
+    orders = await db.orders.find({"partner_id": user["user_id"],"is_test":{"$ne":True}}, {"_id": 0}).to_list(1000)
     delivered = [o for o in orders if o["status"] == "delivered"]
     active = [o for o in orders if o["status"] in ("assigned", "picked_up", "in_transit")]
     return {
@@ -1058,10 +1078,12 @@ async def settle_order(order_id: str, body: SettleBody, user=Depends(require_rol
     o = await db.orders.find_one({"order_id": order_id}, {"_id": 0})
     if not o:
         raise HTTPException(404, "Order not found")
+    if o.get("is_test"):
+        raise HTTPException(409,"This is a test order. Real payments and partner payouts are disabled for it.")
     if o["status"] != "delivered":
         raise HTTPException(400, "Settle only after delivery")
     if (o.get("settlement") or {}).get("status") == "settled":
-        raise HTTPException(409, "Already settled")
+        raise HTTPException(409, "This partner payment has already been settled.")
     p = await db.users.find_one({"user_id": o["partner_id"]}, {"_id": 0})
     snap = {**settlement_snapshot(p), **{k: v for k, v in (o.get("settlement") or {}).items() if v}}
     if not snap.get("account_number_masked") and not snap.get("upi_id"):
@@ -1092,7 +1114,7 @@ async def system_info():
 @api.post("/admin/seed-test-users")
 async def seed_test_users(user=Depends(require_role("admin"))):
     if not ALLOW_LEGACY_AUTH:
-        raise HTTPException(410, "Legacy demo users are unavailable with Firebase authentication")
+        raise HTTPException(410, "Demo accounts are unavailable. Sign in with a registered account.")
     if APP_ENV == "production":
         raise HTTPException(403, "Test users cannot be seeded in production")
     import seed_demo
@@ -1102,7 +1124,7 @@ async def seed_test_users(user=Depends(require_role("admin"))):
 
 @api.get("/admin/stats")
 async def admin_stats(user=Depends(require_role("admin"))):
-    orders = await db.orders.find({"status": {"$nin": ["pending_payment", "cancelled"]}}, {"_id": 0, "quote": 1, "status": 1}).to_list(5000)
+    orders = await db.orders.find({"status": {"$nin": ["pending_payment", "cancelled"]},"is_test":{"$ne":True}}, {"_id": 0, "quote": 1, "status": 1}).to_list(5000)
     return {
         "paid_orders": len(orders),
         "open_orders": sum(1 for o in orders if o["status"] == "paid"),
@@ -1126,7 +1148,7 @@ def payment_configuration():
 def rzp_client() -> razorpay.Client:
     key_id, secret = os.environ.get("RAZORPAY_KEY_ID"), os.environ.get("RAZORPAY_KEY_SECRET")
     if not key_id or not secret or not payment_configuration()["enabled"]:
-        raise HTTPException(503, "Online payments are unavailable. Merchant configuration is pending, or test keys are being used outside an isolated test environment.")
+        raise HTTPException(503, "Online payments are temporarily unavailable. Please try again later or contact support.")
     return razorpay.Client(auth=(key_id, secret))
 
 
@@ -1146,6 +1168,8 @@ async def create_payment(body: PayBody, request: Request, user=Depends(require_r
     o = await db.orders.find_one({"order_id": body.order_id, "customer_id": user["user_id"]}, {"_id": 0})
     if not o:
         raise HTTPException(404, "Order not found")
+    if o.get("is_test"):
+        raise HTTPException(409,"This is a test order. Real payments and partner payouts are disabled for it.")
     if o.get("payment_plan"):
         return await create_instalment(sys.modules[__name__],o,user,request,body.stage)
     if o["status"] != "pending_payment":
@@ -1172,7 +1196,7 @@ async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer
         return await confirm_instalment(sys.modules[__name__],session,payment_id,signature,customer_id)
     o = await db.orders.find_one({"razorpay_order_id": rzp_order_id}, {"_id": 0})
     if not o or (customer_id and o["customer_id"] != customer_id):
-        raise HTTPException(404, "Unknown payment order")
+        raise HTTPException(404, "The payment could not be found. Refresh the order or contact support.")
     if o.get("payment_plan"):
         raise HTTPException(409,"The instalment payment session was not found. Refresh the order.")
     if o["status"] != "pending_payment":
@@ -1180,7 +1204,7 @@ async def mark_paid(rzp_order_id: str, payment_id: str, signature: str, customer
     secret = os.environ["RAZORPAY_KEY_SECRET"]
     expected = hmac.new(secret.encode(), f"{rzp_order_id}|{payment_id}".encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, signature):
-        raise HTTPException(400, "Invalid payment signature")
+        raise HTTPException(400, "The payment could not be verified. Refresh payment status before trying to pay again. Contact support if money was deducted.")
     pay = await asyncio.to_thread(rzp_client().payment.fetch, payment_id)
     if pay.get("order_id") != rzp_order_id or pay.get("amount") != o["amount_paise"] or pay.get("currency") != "INR" or pay.get("status") not in ("captured", "authorized"):
         raise HTTPException(400, "Payment not completed")
@@ -1200,6 +1224,7 @@ async def reconcile_payment(body: PayBody, user=Depends(require_role("customer")
     await limit_places(user)
     order=await db.orders.find_one({"order_id":body.order_id,"customer_id":user["user_id"]},{"_id":0})
     if not order: raise HTTPException(404,"Order not found")
+    if order.get("is_test"): raise HTTPException(409,"This is a test order. Real payments are disabled for it.")
     if not order.get("payment_plan"): raise HTTPException(409,"Contact support to reconcile a legacy payment.")
     return await reconcile_instalments(sys.modules[__name__],order)
 
@@ -1223,7 +1248,7 @@ async def checkout_page(rzp_order_id: str, request: Request):
     if o and session:
         o["amount_paise"]=session["amount_paise"]
     if not o:
-        raise HTTPException(404, "Unknown payment")
+        raise HTTPException(404, "The payment could not be found. Refresh the order or contact support.")
     key_id = os.environ.get("RAZORPAY_KEY_ID", "")
     cb = f"{public_base(request)}/api/payments/callback"
     return f"""<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">

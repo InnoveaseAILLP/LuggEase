@@ -15,6 +15,8 @@ import {ErrorBoundary} from './src/components/error-boundary';
 import {queryClient} from './src/query-client';
 import {useTheme} from './src/theme';
 import Login from './app/login';
+import AdminAccountRequired from './app/admin-account-required';
+import {isAdminLoginEntry} from './src/login-entry';
 import Onboarding from './app/onboarding';
 import PartnerRegister from './app/partner-register';
 import Deployment from './app/deployment';
@@ -39,9 +41,9 @@ function Main() {
 function Navigation() {
   const {user, loading} = useAuth();
   if (loading) return <View style={{flex:1,justifyContent:'center'}}><ActivityIndicator testID="app-loading"/></View>;
-  const gate = !user ? 'guest' : !user.role ? 'onboarding' : user.role === 'partner' && (!user.partner_profile || user.partner_status === 'incomplete') ? 'partner' : 'ready';
+  const gate = !user ? 'guest' : isAdminLoginEntry() && user.role!=='admin' ? 'admin-account' : !user.role ? 'onboarding' : user.role === 'partner' && (!user.partner_profile || user.partner_status === 'incomplete') ? 'partner' : 'ready';
   return <NavigationContainer><Stack.Navigator key={`${user?.user_id || 'guest'}:${gate}`} screenOptions={{headerShown:false}}>
-    {gate === 'guest' ? <Stack.Screen name="Login" component={Login}/> : gate === 'onboarding' ? <Stack.Screen name="Onboarding" component={Onboarding}/> : gate === 'partner' ? <Stack.Screen name="PartnerRegister" component={PartnerRegister}/> : <>
+    {gate === 'guest' ? <Stack.Screen name="Login" component={Login}/> : gate === 'admin-account' ? <Stack.Screen name="AdminAccountRequired" component={AdminAccountRequired}/> : gate === 'onboarding' ? <Stack.Screen name="Onboarding" component={Onboarding}/> : gate === 'partner' ? <Stack.Screen name="PartnerRegister" component={PartnerRegister}/> : <>
       <Stack.Screen name="Main" component={Main}/>
       {user?.role==='admin'&&<Stack.Screen name="AdminReports" component={AdminReports}/>}
       <Stack.Screen name="PartnerRegister" component={PartnerRegister}/>

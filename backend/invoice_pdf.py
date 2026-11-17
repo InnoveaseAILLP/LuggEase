@@ -44,13 +44,14 @@ def build_invoice_pdf(order, supplier):
     p = lambda value, style=normal: Paragraph(text(value), style)
     money = lambda value: f'INR {float(value or 0):,.2f}'
     story = [Table([[Image(str(ASSETS / 'luggease-icon.png'), width=58, height=58),
-        [p('SALES INVOICE', heading), p(order['invoice_no']), p('Date: ' + str(order.get('invoice_date', ''))[:10])]]],
+        [p('TEST INVOICE - NOT VALID FOR TAX' if order.get('is_test') else 'SALES INVOICE', heading), p(order['invoice_no']), p('Date: ' + str(order.get('invoice_date', ''))[:10])]]],
         colWidths=[75, 448]), Spacer(1, 12), p(supplier['name']), p(supplier['address']),
         p(f"GSTIN: {supplier['gstin']}   |   PAN: {supplier['pan']}", small), Spacer(1, 10),
         p('BILL TO'), p(order.get('customer_name') or order.get('customer_email')),
         p(order.get('customer_email')), p('GSTIN: ' + (order.get('customer_gstin') or 'Unregistered (B2C)'), small),
         Spacer(1, 10), p('Order: ' + order['order_id'], small),
         p('Pickup: ' + order.get('pickup_address', '')), p('Drop: ' + order.get('drop_address', ''))]
+    if order.get('is_test'):story += [p('TEST ONLY - NO PAYMENT RECEIVED. This document is for workflow testing and is not a receipt.', heading)]
     q = order['quote']; g = q['gst']
     story += [p(f"Place of supply: {q.get('place_of_supply', '')} ({g['supply_type']})", small),
               p(f"SAC {g['sac']} | {g['description']}", small), Spacer(1, 10)]
@@ -74,10 +75,10 @@ def build_invoice_pdf(order, supplier):
         ('TOPPADDING', (0,0), (-1,-1), 7), ('BOTTOMPADDING', (0,0), (-1,-1), 7)]))
     story += [table, Spacer(1, 8), p(q.get('amount_in_words', ''))]
     if q.get('tip'):
-        story += [p('Tip to partner (not taxable): ' + money(q['tip'])), p('Total paid including tip: ' + money(q['grand_total']))]
+        story += [p('Tip to partner (not taxable): ' + money(q['tip'])), p(('Test total including tip: ' if order.get('is_test') else 'Total paid including tip: ') + money(q['grand_total']))]
     plan=order.get('payment_plan')
     if plan:
-        story += [Spacer(1,8),p('Payment schedule: 50% at booking; remaining 50% after loading on pickup day, before departure.', small), p('Payments received: '+money(plan['paid_paise']/100)), p('Outstanding order balance: '+money(max(0,plan['total_paise']-plan['paid_paise'])/100))]
+        story += [Spacer(1,8),p('Payment schedule: 50% at booking; remaining 50% after loading on pickup day, before departure.', small), p(('Simulated credit (no money received): ' if order.get('is_test') else 'Payments received: ')+money(plan['paid_paise']/100)), p('Outstanding order balance: '+money(max(0,plan['total_paise']-plan['paid_paise'])/100))]
     bank=supplier.get('bank') or {}
     if str(bank.get('account_number','')).isdigit():
         story += [Spacer(1,10),p('Bank details for NEFT / RTGS payment',small),
@@ -99,6 +100,7 @@ def build_invoice_pdf(order, supplier):
             p(order.get('invoice_delivery_signed_at',''),small)]
     def footer(canvas, document):
         canvas.saveState(); canvas.setFont('Invoice', 8); canvas.setFillColor(colors.HexColor('#666666'))
-        canvas.drawString(36, 24, 'LuggEase | Sales invoice'); canvas.drawRightString(559, 24, f'Page {document.page}'); canvas.restoreState()
+        if order.get('is_test'):canvas.drawString(36, 38, 'TEST ONLY | NO PAYMENT RECEIVED | NOT VALID FOR TAX')
+        canvas.drawString(36, 24, 'LuggEase | Test invoice' if order.get('is_test') else 'LuggEase | Sales invoice'); canvas.drawRightString(559, 24, f'Page {document.page}'); canvas.restoreState()
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
     return output.getvalue()

@@ -1,3 +1,4 @@
+import {getErrorMessage, errorCode} from '@/src/errors';
 import {Linking} from "react-native";
 import { Image } from "react-native";
 import { LinearGradient } from "@/src/components/linear-gradient";
@@ -9,6 +10,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth";
 import { Button, Input, radius, space } from "@/src/components/ui";
 import { BrandIcon } from "@/src/components/brand-icon";
+import {isAdminLoginEntry} from "@/src/login-entry";
+import {ADMIN_LOGIN_EMAIL} from "@/src/admin-entry-config";
 import { LoginRoleSelector } from "@/src/components/login-role-selector";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -19,10 +22,11 @@ export default function Login() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { entryRole, setEntryRole, loginEmail, registerEmail, loginGoogle, resetPassword, resendVerification, completeVerification, logout } = useAuth();
-  const role=entryRole??"customer";
+  const adminEntry=isAdminLoginEntry();
+  const role=adminEntry?"admin":entryRole==="partner"?"partner":"customer";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(adminEntry?ADMIN_LOGIN_EMAIL:"");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [verification, setVerification] = useState(false);
@@ -44,8 +48,8 @@ export default function Login() {
       if (mode === "login") await loginEmail(email.trim(), password);
       else { await registerEmail(name.trim(), email.trim(), password); setVerification(true); setMessage("Verification email sent. Check your inbox and spam folder."); }
     } catch (e: any) {
-      setError(e.message);
-      if (e.message?.includes("verify your email")) setVerification(true);
+      setError(getErrorMessage(e));
+      if (errorCode(e) === "auth/email-not-verified") setVerification(true);
     } finally {
       setBusy(false);
     }
@@ -59,7 +63,7 @@ export default function Login() {
     try {
       await loginGoogle();
     } catch (e: any) {
-      setError(e.message || "Google sign-in failed. Please try again.");
+      setError(getErrorMessage(e, "Google sign-in is temporarily unavailable. Please try again."));
     } finally {
       setGBusy(false);
     }
@@ -68,7 +72,7 @@ export default function Login() {
   async function run(action: () => Promise<void>) {
     if (busy || gBusy) return;
     setBusy(true); setError(""); setMessage("");
-    try { await action(); } catch (e: any) { setError(e.message || "Please try again."); } finally { setBusy(false); }
+    try { await action(); } catch (e: any) { setError(getErrorMessage(e)); } finally { setBusy(false); }
   }
 
   return (
@@ -85,18 +89,18 @@ export default function Login() {
         </View>
 
         <View style={s.sheet}>
-          {!verification&&<LoginRoleSelector role={role} disabled={busy||gBusy} onChange={value=>{setEntryRole(value);if(value==='admin'){setMode('login');setEmail('rmanojananth@innovease-ai.in');setPassword('');}setError('');setMessage('');}}/>}
-          <View style={s.segment}>
+          {adminEntry?<View style={{gap:space.sm}}><Text accessibilityRole="header" style={{fontSize:22,fontWeight:'700',color:colors.onSurface}}>Administrator sign in</Text><Text style={{color:colors.muted}}>Sign in with your assigned administrator account.</Text></View>:!verification&&<LoginRoleSelector role={role==='partner'?'partner':'customer'} disabled={busy||gBusy} onChange={value=>{setEntryRole(value);setError('');setMessage('');}}/>}
+          {!adminEntry&&<View style={s.segment}>
             {(["login", "register"] as const).map((m) => (
-              <Pressable accessibilityRole="button" key={m} testID={`auth-mode-${m}`} disabled={busy || gBusy || (m==='register'&&role==='admin')} accessibilityState={{disabled:busy||gBusy||(m==='register'&&role==='admin')}} onPress={() => { setMode(m); setError(""); setMessage(""); }} style={[s.segBtn, mode === m && s.segActive, m==='register'&&role==='admin'&&{opacity:0.4}]}>
+              <Pressable accessibilityRole="button" key={m} testID={`auth-mode-${m}`} disabled={busy || gBusy} accessibilityState={{disabled:busy||gBusy}} onPress={() => { setMode(m); setError(""); setMessage(""); }} style={[s.segBtn, mode === m && s.segActive]}>
                 <Text style={[s.segText, mode === m && { color: colors.onSurface }]}>{m === "login" ? "Sign in" : "Create account"}</Text>
               </Pressable>
             ))}
-          </View>
+          </View>}
 
           {!verification ? <View style={{ gap: space.md }}>
             {mode === "register" ? <Input testID="register-name-input" label="Full name" value={name} onChangeText={setName} autoComplete="name" /> : null}
-            <Input testID="auth-email-input" label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+            <Input testID="auth-email-input" label="Email" editable={!adminEntry} value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             <Input testID="auth-password-input" label="Password" value={password} onChangeText={setPassword} placeholder={mode === "register" ? "Minimum 8 characters" : "Your password"} secureTextEntry={!showPassword} autoComplete={mode === "register" ? "new-password" : "current-password"} />
             <Pressable accessibilityRole="button" onPress={() => setShowPassword(!showPassword)}><Text>{showPassword ? "Hide password" : "Show password"}</Text></Pressable>
             {error ? <Text testID="auth-error" style={{ color: colors.error, fontSize: 13 }}>{error}</Text> : null}

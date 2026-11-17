@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-17",
+  "frontend_tests": 141,
+  "backend_tests": 130,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "android_signed_release": "passed",
+  "ios_release": "passed",
+  "native_installation": "builds prepared; not reinstalled during this update",
+  "api_revision": "luggease-api-00022-2lt",
+  "hosting_version": "46d8912ccafa7871",
+  "http_checks": {
+    "website": 200,
+    "private_api": 403,
+    "tokenless_gateway": 401
+  },
+  "live_ui_check": {
+    "order_id": "LE261116A46516",
+    "role": "invited assigned test partner",
+    "reason": "Test",
+    "saved_eta_ist": "2026-11-17 18:19:00 Asia/Kolkata",
+    "simulated_balance_paise": 95800,
+    "simulated_total_paise": 191600,
+    "actual_money_received_paise": 0,
+    "start_trip_enabled": true,
+    "trip_started": false,
+    "order_status": "picked_up",
+    "screenshot": "docs/screenshots/delivery-time-start-trip-fixed.jpg"
+  }
+}

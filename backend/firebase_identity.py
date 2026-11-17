@@ -9,10 +9,10 @@ from fastapi import HTTPException
 @lru_cache(maxsize=1)
 def firebase_app():
     if os.environ.get("APP_ENV") == "production" and os.environ.get("FIREBASE_AUTH_EMULATOR_HOST"):
-        raise HTTPException(503, "Authentication emulator is forbidden in production")
+        raise HTTPException(503, "Sign-in is temporarily unavailable. Please contact support.")
     project = os.environ.get("FIREBASE_PROJECT_ID")
     if not project:
-        raise HTTPException(503, "Firebase Authentication is not configured")
+        raise HTTPException(503, "Sign-in is temporarily unavailable. Please try again later.")
     try:
         return firebase_admin.get_app("luggease")
     except ValueError:
@@ -23,11 +23,11 @@ async def verify_identity(token: str) -> dict:
     try:
         claims = await asyncio.to_thread(auth.verify_id_token, token, app=app, check_revoked=True)
     except (auth.ExpiredIdTokenError, auth.RevokedIdTokenError, auth.UserDisabledError, auth.InvalidIdTokenError, ValueError):
-        raise HTTPException(401, "Invalid or expired Firebase identity")
+        raise HTTPException(401, "Your sign-in session has expired. Please sign in again.")
     except Exception:
-        raise HTTPException(503, "Authentication service unavailable; please retry")
+        raise HTTPException(503, "Sign-in is temporarily unavailable. Please try again shortly.")
     if not claims.get("uid") or not claims.get("email"):
-        raise HTTPException(401, "Identity must include an email address")
+        raise HTTPException(401, "Sign in with an account that has an email address.")
     if claims.get("email_verified") is not True:
         raise HTTPException(403, "Verify your email before continuing")
     return claims

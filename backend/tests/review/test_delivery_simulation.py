@@ -37,7 +37,10 @@ async def test_complete_customer_partner_delivery_simulation(app,monkeypatch,ass
         r=await client.post('/api/payments/create',headers=headers('simulation-customer'),json={'order_id':oid,'stage':stage});assert r.status_code==200,r.text
         result=await client.post('/api/payments/verify',headers=headers('simulation-customer'),json=receipt(r.json(),payments,pid));assert result.status_code==200,result.text
         return result.json()
+    unavailable=await client.get(path+'/pickup-invoice.pdf',headers=headers('simulation-customer'))
+    assert unavailable.status_code==409 and '50% booking advance' in unavailable.json()['detail']
     o=await pay('advance','pay_simulation_advance');assert o['status']=='paid'
+    assert (await client.get(path+'/pickup-invoice.pdf',headers=headers('simulation-customer'))).status_code==200
     assert (await client.get('/api/partner/jobs',headers=headers('simulation-partner'))).json()==[]
     assert (await client.post('/api/admin/partners/'+driver['user_id']+'/decision',headers=headers('simulation-admin'),json={'decision':'approved'})).status_code==200
     jobs=(await client.get('/api/partner/jobs',headers=headers('simulation-partner'))).json();assert any(j['order_id']==oid for j in jobs)
@@ -49,10 +52,13 @@ async def test_complete_customer_partner_delivery_simulation(app,monkeypatch,ass
     assert (await client.get(path+'/tracking',headers=headers('simulation-customer'))).status_code==409
     pickup={'invoice_signature':signature(),'agreement_signature':signature(),'pickup_otp':o['pickup_otp'],'customer_name':'Synthetic Simulation Customer','goods_loaded_and_checked':True,'customer_present':True}
     assert (await client.post(path+'/pickup-signatures',headers=headers('simulation-partner'),json=pickup)).status_code==200
-    o=await pay('balance','pay_simulation_balance')
-    assert o['payment_plan']['paid_paise']==o['payment_plan']['total_paise']
     async def status(value,otp=None):return await client.post(path+'/status',headers=headers('simulation-partner'),json={'status':value,'otp':otp})
     assert (await status('picked_up',o['pickup_otp'])).status_code==200
+    assert (await status('in_transit')).status_code==409
+    o=await pay('balance','pay_simulation_balance')
+    assert o['payment_plan']['paid_paise']==o['payment_plan']['total_paise']
+    for actor in ('simulation-customer','simulation-admin','outsider'):
+        assert (await client.post(path+'/status',headers=headers(actor),json={'status':'in_transit'})).status_code==403
     assert (await client.get(path+'/tracking',headers=headers('simulation-customer'))).status_code==409
     assert (await status('in_transit')).status_code==200
     points=[]
@@ -97,7 +103,7 @@ async def test_complete_customer_partner_delivery_simulation(app,monkeypatch,ass
     assert (await client.get('/api/admin/stats',headers=headers('simulation-admin'))).status_code==200
     report={'assignment':assignment,'admin_approval_verified':True,'settlement_metadata_verified':True,'environment' :'isolated simulation - no production records','test_users':['simulation-customer','simulation-partner'],'order_id':oid,
         'statuses':[t['status'] for t in record['timeline']],'finding_partner_verified':True,'partner_jobs_verified':True,'pickup_signatures_verified':True,
-        'invoice_paid_in_full':True,'gps_source':'synthetic test coordinates, not a real journey','gps_points':points,'live_map_only_in_transit':True,
+        'invoice_paid_in_full':True,'pickup_recorded_before_balance':True,'balance_required_before_transit':True,'gps_source':'synthetic test coordinates, not a real journey','gps_points':points,'live_map_only_in_transit':True,
         'destination_confirmation':'synthetic partner/customer declaration, not independently verified arrival','delivery_signature_verified':True,
         'final_invoice_signature_verified':True,'feedback':record['rating'],'duplicate_feedback_prevented':True,'real_money':False}
     (Path(__file__).resolve().parents[3]/f'test_reports/delivery-simulation-{assignment}.json').write_text(json.dumps(report,indent=2))

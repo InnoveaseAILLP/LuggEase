@@ -43,3 +43,8 @@ Evidence: test_reports/delivery-simulation.json, review-backend.xml, review-fron
 ## All-role extension — 16 November 2026
 
 The full simulation now runs twice: partner acceptance and administrator assignment. Both use API profile submission, pending approval and administrator approval rather than directly marking a driver approved. Additional checks cover non-admin denial, duplicate assignment, earnings, synthetic settlement recording and concurrent-settlement protection. Results are saved separately as test_reports/delivery-simulation-partner.json and test_reports/delivery-simulation-admin.json. See review-remediation-2026-11-16.md for the scope and verification limits. No transfer is performed by the settlement metadata test.
+
+
+## Updated pickup/payment sequence — 17 November 2026
+
+Both lifecycle simulations now review invoice availability before/after the booking advance, capture customer loading signatures, record OTP-confirmed Picked up, reject In transit while the remaining 50% is unpaid, collect that balance synthetically, then complete transit, destination acknowledgement, Delivered and feedback. Customer/admin delivery-status update attempts are rejected. Live collection remains disabled at the owner’s request; these checks do not certify live merchant settlement or real movement of goods. Current suite: 122 backend and 116 frontend tests passed.

@@ -15,14 +15,14 @@ test('opens Google popup synchronously from the user action', async () => {
 });
 test.each([
   ['auth/popup-blocked', 'Allow pop-ups'],
-  ['auth/unauthorized-domain', 'not enabled'],
+  ['auth/unauthorized-domain', 'temporarily unavailable'],
   ['auth/popup-closed-by-user', 'cancelled'],
 ])('explains %s to the user', async (code, message) => {
   mockPopup.mockRejectedValue({code});
   await expect(identity.google()).rejects.toThrow(message);
 });
-test('preserves unexpected authentication failures', async () => {
+test('turns network failures into connection guidance', async () => {
   const failure = new Error('Network unavailable');
   mockPopup.mockRejectedValue(failure);
-  await expect(identity.google()).rejects.toBe(failure);
+  await expect(identity.google()).rejects.toThrow('Check your internet connection');
 });

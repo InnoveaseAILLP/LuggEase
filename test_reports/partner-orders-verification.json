@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-17",
+  "invitation": {
+    "invited_partner": "vsaraswathi@innovease-ai.in",
+    "money_received_paise": 0,
+    "order_accepted": false,
+    "order_id": "LE261116A46516",
+    "real_job_exposure": false,
+    "real_vehicle_unchanged": "two_wheeler",
+    "status": "paid",
+    "test_offer_verified": true
+  },
+  "backend_tests": 129,
+  "frontend_tests": 128,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "android_signed_release": "passed",
+  "ios_release": "passed",
+  "api_revision": "luggease-api-00021-gw9",
+  "acceptance": "only exercised in isolated automated tests; production order left available for partner choice",
+  "http_checks": {
+    "website": 200,
+    "private_api": 403,
+    "tokenless_gateway": 401
+  },
+  "hosting_version": "58d7974511cd6bcc",
+  "mobile_installation": "release builds prepared; not reinstalled in this update",
+  "live_ui_verification": "Signed-in approved partner: Orders contains Available jobs, My jobs and Test jobs; invited order LE261116A46516 is visible with enabled Accept test job action; no acceptance was submitted.",
+  "screenshot": "docs/screenshots/partner-orders-invited-test-job.jpg",
+  "one_off_job_cleanup": "completed"
+}

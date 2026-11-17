@@ -4,16 +4,16 @@ import type {Role} from '../types';
 import {makeStyles, useTheme} from '../theme';
 import {Icon, radius, space} from './ui';
 
-export function LoginRoleSelector({role, onChange, disabled}: {role:Role;onChange:(role:Role)=>void;disabled:boolean}) {
+export function LoginRoleSelector({role, onChange, disabled}: {role:Exclude<Role,'admin'>;onChange:(role:Exclude<Role,'admin'>)=>void;disabled:boolean}) {
   const s=useStyles();const {colors}=useTheme();
   return <View style={{gap:space.sm}}>
     <Text style={s.heading}>Continue as</Text>
     <View accessibilityRole="radiogroup" accessibilityLabel="Account type" style={s.options}>
-      {(['customer','partner','admin'] as const).map(value=><Pressable key={value}
+      {(['customer','partner'] as const).map(value=><Pressable key={value}
         testID={`login-role-${value}`} accessibilityRole="radio" accessibilityLabel={ROLE_LABELS[value]}
         accessibilityState={{selected:value===role,checked:value===role,disabled}} aria-checked={value===role} disabled={disabled}
         onPress={()=>onChange(value)} style={[s.option,value===role&&s.selected]}>
-        <Icon name={value==='customer'?'package-variant-closed':value==='partner'?'truck-delivery-outline':'shield-account-outline'} size={24} color={value===role?colors.brandPrimary:colors.muted}/>
+        <Icon name={value==='customer'?'package-variant-closed':'truck-delivery-outline'} size={24} color={value===role?colors.brandPrimary:colors.muted}/>
         <Text style={[s.label,value===role&&{color:colors.brandPrimary}]}>{ROLE_LABELS[value]}</Text>
       </Pressable>)}
     </View>

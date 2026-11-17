@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import {useRouter} from "../router";
 import { AccountRole } from "./account-role";
 import { BrandIcon } from "@/src/components/brand-icon";
@@ -36,7 +37,7 @@ export function AdminHome() {
       qc.invalidateQueries({ queryKey: ["admin-partners"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setBusy(null);
     }

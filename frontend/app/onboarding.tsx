@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -33,7 +34,7 @@ export default function Onboarding() {
       setEntryRole(role);
       await setRole(role, phone.replace(/\D/g, "").slice(-10) || undefined);
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setBusy(false);
     }

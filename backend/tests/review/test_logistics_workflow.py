@@ -52,7 +52,7 @@ async def test_agreement_requires_ownership_review_before_booking(app,monkeypatc
     assert document.content.startswith(b'%PDF') and document.headers['cache-control']=='private, no-store'
     text='\n'.join(p.extract_text() for p in PdfReader(BytesIO(document.content)).pages)
     assert 'LOGISTICS TRANSFER AGREEMENT' in text and 'sofa' in text.lower() and 'Awaiting customer review' in text
-    assert a['version']==2 and a['supplier']['name']==server.SUPPLIER['name']
+    assert a['version']==3 and a['supplier']['name']==server.SUPPLIER['name']
     assert server.SUPPLIER['name'] in text and 'Customer / consignor' in text
     assert 'Booking advance - 50%' in text and 'Pickup balance - remaining 50%' in text
     assert 'No Aadhaar authentication is required' in ' '.join(text.split())

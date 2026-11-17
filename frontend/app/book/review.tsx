@@ -1,3 +1,4 @@
+import {getErrorMessage} from '@/src/errors';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@/src/router";
 import { useState } from "react";
@@ -45,7 +46,7 @@ export default function BookReview() {
       router.dismissAll();
       router.push(`/order/${o.order_id}`);
     } catch (e: any) {
-      toast(e.message, "error");
+      toast(getErrorMessage(e), "error");
     } finally {
       setBusy(false);
     }
@@ -62,7 +63,7 @@ export default function BookReview() {
       ) : error && !q ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: space.xl, gap: space.md }}>
           <Icon name="alert-circle-outline" size={40} color={colors.error} />
-          <Text testID="quote-error" style={[s.muted, { textAlign: "center" }]}>{(error as Error).message}</Text>
+          <Text testID="quote-error" style={[s.muted, { textAlign: "center" }]}>{getErrorMessage(error)}</Text>
           <Button variant="outline" compact title="Go back" onPress={() => router.back()} />
         </View>
       ) : q ? (
