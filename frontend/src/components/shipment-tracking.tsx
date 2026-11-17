@@ -1,3 +1,4 @@
+import {shareShipmentPosition} from '@/src/shipment-location';
 import {getErrorMessage} from '@/src/errors';
 import {useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,AppState,Text} from 'react-native';
@@ -28,6 +29,7 @@ export function ShipmentTracking({order,compact=false}:{order:Order;compact?:boo
   });
   return()=>{alive.current=false;stopSharing();sub.remove();};
  },[]);
+ useEffect(()=>()=>{stopSharing();},[order.order_id,user?.user_id]);
  useEffect(()=>{if(!canShare)stopSharing();if(!inTransit)setOpen(false);else if(customer)setOpen(true);},[canShare,inTransit,customer,order.order_id]);
  const start=async(retry=false)=>{
   if(starting||(sharing&&!retry)||!canShareNow.current)return;
@@ -43,9 +45,9 @@ export function ShipmentTracking({order,compact=false}:{order:Order;compact?:boo
    if(posting||Date.now()-last.current<15000)return;
    posting=true;last.current=Date.now();
    try{
-    await api(`/orders/${order.order_id}/tracking`,{body:point});
+    await shareShipmentPosition(order.order_id,point);
     if(current()){setTrackingError('');setConfirmed(true);void refetch?.();}
-   }catch(error){if(current())setTrackingError(getErrorMessage(error));}
+   }catch(error){if(current()){setConfirmed(false);setTrackingError(getErrorMessage(error));}}
    finally{posting=false;}
   };
   emit.current=send;

@@ -230,3 +230,37 @@ async def test_signed_agreement_retains_original_document_and_appends_private_si
     assert preserved.content==original.content
     stored=await db.transfer_agreements.find_one({'agreement_id':a['agreement_id']})
     assert stored['document_sha256']==hashlib.sha256(original.content).hexdigest()
+
+
+@pytest.mark.asyncio
+async def test_tracking_receipt_readback_stale_and_stationary_reconnect(app,monkeypatch):
+    """Real HTTP routes/serialization/authorization against an isolated database."""
+    client,db=app
+    order=await assigned(client,db,'in_transit')
+    path=f"/api/orders/{order['order_id']}/tracking"
+    clock=[server.now_utc()]
+    monkeypatch.setattr(server,'now_utc',lambda:clock[0])
+    point={'latitude':11.01,'longitude':77.0,'accuracy':15,'captured_at':clock[0].isoformat()}
+    receipt=await client.post(path,headers=headers('driver'),json=point)
+    assert receipt.status_code==200
+    for actor in ('alice','driver'):
+        response=await client.get(path,headers=headers(actor))
+        assert response.status_code==200
+        stored=response.json()
+        assert stored['sharing_active'] and not stored['stale']
+        assert stored['points'][0]['received_at']==receipt.json()['received_at']
+        assert all(stored['points'][0][key]==point[key] for key in ('latitude','longitude','accuracy'))
+        assert datetime.fromisoformat(stored['points'][0]['captured_at'])==datetime.fromisoformat(point['captured_at'])
+        assert 'recorded_at' not in stored['points'][0] and 'partner_id' not in stored['points'][0]
+    clock[0]+=timedelta(seconds=121)
+    stale=(await client.get(path,headers=headers('alice'))).json()
+    assert stale['stale'] and not stale['sharing_active'] and len(stale['points'])==1
+    # Reopening can share a fresh fix even when the partner has not moved.
+    point['captured_at']=clock[0].isoformat()
+    fresh=await client.post(path,headers=headers('driver'),json=point)
+    assert fresh.status_code==200
+    reconnected=(await client.get(path,headers=headers('alice'))).json()
+    assert not reconnected['stale'] and reconnected['sharing_active']
+    assert len(reconnected['points'])==2
+    assert reconnected['points'][-1]['received_at']==fresh.json()['received_at']
+    assert (await client.get(path,headers=headers('bob'))).status_code==404

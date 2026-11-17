@@ -255,3 +255,14 @@ Test records cannot appear in real partner jobs or be accepted/dispatched, charg
 ### Delivery-time dropdown selection — 17 November 2026
 
 Hour choices 00-23 and minute choices 00-59 replace free-text time input. Preserve individual minutes such as 19 and the 23:59 boundary; selecting either control keeps the other value. Disabled controls cannot change during submission. Existing India-time conversion, future date/range and reason validation still apply. The workflow test selects hour/minute controls before submitting the revision.
+
+### Additional system integration cases — 17 November 2026
+
+| ID | Scenario | Expected result | Execution |
+| --- | --- | --- | --- |
+| SIT-TRACK-01 | Switch a sharing component to another order; deliver a late callback from the old watcher | Old watcher cancelled, late callback ignored, new order requires explicit sharing | Pass; reproduced failure before fix |
+| SIT-TRACK-02 | Upload acknowledgement missing, malformed, or cannot be found in same-order read-back | No success confirmation; retry guidance | Pass |
+| SIT-TRACK-03 | Read-back has equivalent timestamp with normalized fractional seconds | Accepted as the same capture instant | Pass |
+| SIT-TRACK-04 | Actual frontend transport/helper posts to isolated FastAPI over HTTP; customer reads same receipt | Same stored coordinates/receipt, correct authorization, no private storage fields | Pass |
+| SIT-TRACK-05 | Customer uploads, outsider reads, or map requested before In transit | Rejected by API; no disclosure | Pass |
+| SIT-TRACK-06 | No fix for 121 seconds, then a stationary partner reports a new current fix | Last-known report marked stale; fresh fix restores active sharing | Pass |

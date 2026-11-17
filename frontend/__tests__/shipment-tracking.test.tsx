@@ -21,7 +21,7 @@ jest.mock('../src/components/ui',()=>{
 const order=(status:OrderStatus)=>({order_id:'QA-TRACK',partner_id:'partner-test',status}) as Order;
 const originalAppState=AppState.currentState;
 afterAll(()=>{AppState.currentState=originalAppState;});
-beforeEach(()=>{jest.clearAllMocks();AppState.currentState='active';mockTrackingUser='partner-test';(api as jest.Mock).mockResolvedValue({});});
+beforeEach(()=>{jest.clearAllMocks();AppState.currentState='active';mockTrackingUser='partner-test';(api as jest.Mock).mockImplementation(async(_path,options)=>options?.body?{received_at:fix.captured_at}:{points:[{...fix,received_at:fix.captured_at}],stale:false});});
 afterEach(()=>jest.restoreAllMocks());
 test.each(['pending_payment','paid','assigned','picked_up','delivered','cancelled'] as OrderStatus[])('live controls and requests are unavailable for %s',status=>{
  const view=render(<ShipmentTracking order={order(status)}/>);
@@ -96,4 +96,13 @@ test('retry cancels the failed watcher before starting a fresh source',async()=>
  const view=render(<ShipmentTracking order={order('in_transit')}/>);fireEvent.press(view.getByText('Share my delivery location'));
  await waitFor(()=>expect(view.getByText('Retry location')).toBeTruthy());fireEvent.press(view.getByText('Retry location'));
  await waitFor(()=>expect(watchShipmentLocation).toHaveBeenCalledTimes(2));expect(cancel).toHaveBeenCalledTimes(1);expect(view.queryByText('GPS timeout')).toBeNull();
+});
+
+test('switching orders cancels the previous order source and ignores its late fixes',async()=>{
+ const cancel=jest.fn();let send:(p:typeof fix)=>void=()=>{};
+ (watchShipmentLocation as jest.Mock).mockImplementationOnce(callback=>{send=callback;return Promise.resolve(cancel);});
+ const view=render(<ShipmentTracking order={order('in_transit')}/>);fireEvent.press(view.getByText('Share my delivery location'));
+ await waitFor(()=>expect(view.getByText('Stop sharing my delivery location')).toBeTruthy());
+ view.rerender(<ShipmentTracking order={{...order('in_transit'),order_id:'OTHER-ORDER'}}/>);
+ expect(cancel).toHaveBeenCalledTimes(1);act(()=>send(fix));expect(api).not.toHaveBeenCalled();expect(view.queryByText('Stop sharing my delivery location')).toBeNull();
 });
